@@ -17,6 +17,9 @@ gson = "2.13.1"
 hiltNavigationCompose = "1.2.0"
 navigationCompose = "2.9.0"
 coil = "2.7.0"
+firebase = "33.13.0"
+playServicesAuth = "21.3.0"
+googleServices = "4.4.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -53,6 +56,12 @@ okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor",
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 # Coil
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+# Firebase
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase" }
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
+# Google Sign-In
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -60,3 +69,4 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

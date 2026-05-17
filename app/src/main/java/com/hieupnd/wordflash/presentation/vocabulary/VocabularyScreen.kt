@@ -1,6 +1,9 @@
 package com.hieupnd.wordflash.presentation.vocabulary
 
+import android.app.Activity
 import android.speech.tts.TextToSpeech
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,19 +31,23 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -48,8 +55,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -67,9 +74,15 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.hieupnd.wordflash.presentation.sync.SyncViewModel
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import com.hieupnd.wordflash.domain.model.Example
@@ -81,11 +94,29 @@ import java.util.Locale
 @Composable
 fun VocabularyScreen(
     innerPadding: PaddingValues,
-    viewModel: VocabularyViewModel = hiltViewModel()
+    viewModel: VocabularyViewModel = hiltViewModel(),
+    syncViewModel: SyncViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val syncUiState by syncViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    var showAccountMenu by remember { mutableStateOf(false) }
+    val signInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            syncViewModel.onGoogleSignInResult(account)
+        } catch (e: ApiException) {
+            val message = when (e.statusCode) {
+                GoogleSignInStatusCodes.SIGN_IN_CANCELLED -> null // người dùng tự huỷ hoặc nhấn Back
+                CommonStatusCodes.DEVELOPER_ERROR -> "Lỗi cấu hình: kiểm tra SHA-1 trong Firebase Console"
+                CommonStatusCodes.NETWORK_ERROR -> "Lỗi mạng, thử lại sau"
+                else -> "Đăng nhập thất bại (mã lỗi: ${e.statusCode})"
+            }
+            syncViewModel.onGoogleSignInError(message)
+        }
+    }
 
     val tts = remember {
         var instance: TextToSpeech? = null
@@ -99,9 +130,53 @@ fun VocabularyScreen(
     DisposableEffect(Unit) { onDispose { tts?.shutdown() } }
 
     Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-        TopAppBar(title = { Text("WordFlash") })
+        TopAppBar(
+            title = { Text("WordFlash") },
+            actions = {
+                if (syncUiState.currentUser != null) {
+                    if (syncUiState.isSyncing) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(end = 4.dp))
+                    } else {
+                        IconButton(onClick = { syncViewModel.sync() }) {
+                            Icon(Icons.Default.Sync, contentDescription = "Đồng bộ")
+                        }
+                    }
+                }
+                Box {
+                    IconButton(onClick = { showAccountMenu = true }) {
+                        Icon(Icons.Default.Person, contentDescription = "Tài khoản")
+                    }
+                    DropdownMenu(expanded = showAccountMenu, onDismissRequest = { showAccountMenu = false }) {
+                        if (syncUiState.currentUser != null) {
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(syncUiState.currentUser!!.displayName ?: "Người dùng", style = MaterialTheme.typography.bodyMedium)
+                                        Text(syncUiState.currentUser!!.email ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                },
+                                onClick = {}
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Đăng xuất") },
+                                onClick = { syncViewModel.signOut(); showAccountMenu = false }
+                            )
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text("Đăng nhập với Google") },
+                                onClick = {
+                                    showAccountMenu = false
+                                    signInLauncher.launch(syncViewModel.googleSignInClient.signInIntent)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        )
 
-        TabRow(selectedTabIndex = uiState.selectedTab) {
+        SecondaryTabRow(selectedTabIndex = uiState.selectedTab) {
             Tab(
                 selected = uiState.selectedTab == 0,
                 onClick = { viewModel.onTabSelected(0) },
@@ -231,50 +306,13 @@ fun VocabularyScreen(
                                     "Chọn ảnh:",
                                     style = MaterialTheme.typography.labelSmall
                                 )
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    uiState.editDialogImages.take(3).forEach { imageUrl ->
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .aspectRatio(1f)
-                                                .border(
-                                                    width = if (editImageUrl == imageUrl) 3.dp else 1.dp,
-                                                    color = if (editImageUrl == imageUrl)
-                                                        MaterialTheme.colorScheme.primary
-                                                    else
-                                                        MaterialTheme.colorScheme.outline,
-                                                    shape = RoundedCornerShape(6.dp)
-                                                )
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .clickable { editImageUrl = imageUrl }
-                                        ) {
-                                            AsyncImage(
-                                                model = imageUrl,
-                                                contentDescription = null,
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                            if (editImageUrl == imageUrl) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxSize()
-                                                        .background(Color.Black.copy(alpha = 0.3f)),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Check,
-                                                        contentDescription = null,
-                                                        tint = Color.White,
-                                                        modifier = Modifier.size(24.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                ImageSelectionGrid(
+                                    images = uiState.editDialogImages,
+                                    selectedUrl = editImageUrl,
+                                    onSelect = { editImageUrl = it },
+                                    spacing = 6.dp,
+                                    checkIconSize = 24.dp
+                                )
                             }
                         }
                     }
@@ -388,6 +426,33 @@ fun VocabularyScreen(
             }
         )
     }
+
+    // Sync error dialog
+    syncUiState.syncError?.let { error ->
+        AlertDialog(
+            onDismissRequest = syncViewModel::clearError,
+            title = { Text("Lỗi đồng bộ") },
+            text = { Text(error) },
+            confirmButton = { TextButton(onClick = syncViewModel::clearError) { Text("OK") } }
+        )
+    }
+
+    // Sync result dialog
+    syncUiState.syncResult?.let { result ->
+        AlertDialog(
+            onDismissRequest = syncViewModel::clearSyncResult,
+            title = { Text("Đồng bộ thành công") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Từ vựng: +${result.vocabAdded} mới, cập nhật ${result.vocabUpdated}")
+                    Text("Câu: +${result.sentenceAdded} mới, cập nhật ${result.sentenceUpdated}")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = syncViewModel::clearSyncResult) { Text("OK") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -451,7 +516,7 @@ private fun SearchTab(
                             )
                             if (entry.audioUrl.isNotEmpty() || entry.word.isNotEmpty()) {
                                 IconButton(onClick = { onSpeak(entry.word) }) {
-                                    Icon(Icons.Default.VolumeUp, contentDescription = "Phát âm")
+                                    Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Phát âm")
                                 }
                             }
                         }
@@ -508,50 +573,12 @@ private fun SearchTab(
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    uiState.wordImages.take(3).forEach { imageUrl ->
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .aspectRatio(1f)
-                                                .border(
-                                                    width = if (uiState.selectedImageUrl == imageUrl) 3.dp else 1.dp,
-                                                    color = if (uiState.selectedImageUrl == imageUrl)
-                                                        MaterialTheme.colorScheme.primary
-                                                    else
-                                                        MaterialTheme.colorScheme.outline,
-                                                    shape = RoundedCornerShape(8.dp)
-                                                )
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .clickable { onSelectImage(imageUrl) }
-                                        ) {
-                                            AsyncImage(
-                                                model = imageUrl,
-                                                contentDescription = null,
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                            if (uiState.selectedImageUrl == imageUrl) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxSize()
-                                                        .background(Color.Black.copy(alpha = 0.3f)),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Check,
-                                                        contentDescription = null,
-                                                        tint = Color.White,
-                                                        modifier = Modifier.size(32.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                ImageSelectionGrid(
+                                    images = uiState.wordImages,
+                                    selectedUrl = uiState.selectedImageUrl,
+                                    onSelect = onSelectImage,
+                                    checkIconSize = 32.dp
+                                )
                                 Spacer(modifier = Modifier.height(12.dp))
                             }
                             else -> {
@@ -577,6 +604,81 @@ private fun SearchTab(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImageSelectionGrid(
+    images: List<String>,
+    selectedUrl: String,
+    onSelect: (String) -> Unit,
+    spacing: Dp = 8.dp,
+    checkIconSize: Dp = 32.dp
+) {
+    val allOptions = listOf("") + images.take(5)
+    Column(verticalArrangement = Arrangement.spacedBy(spacing)) {
+        allOptions.chunked(3).forEach { chunk ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                chunk.forEach { imageUrl ->
+                    val isSelected = selectedUrl == imageUrl
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f)
+                            .border(
+                                width = if (isSelected) 3.dp else 1.dp,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onSelect(imageUrl) }
+                    ) {
+                        if (imageUrl.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Không có ảnh",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            AsyncImage(
+                                model = imageUrl,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.3f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(checkIconSize)
+                                )
+                            }
+                        }
+                    }
+                }
+                repeat(3 - chunk.size) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -661,10 +763,13 @@ private fun VocabularyCardItem(
     val levelLabels = listOf("Không nhớ", "Hơi nhớ", "Đã nhớ")
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = levelColors.getOrElse(card.memorizationLevel) { MaterialTheme.colorScheme.surface }
-        )
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 2.dp,
+                color = levelColors.getOrElse(card.memorizationLevel) { MaterialTheme.colorScheme.outline },
+                shape = MaterialTheme.shapes.medium
+            )
     ) {
         Column(modifier = Modifier.padding(0.dp)) {
             if (card.imageUrl.isNotEmpty()) {
@@ -698,7 +803,7 @@ private fun VocabularyCardItem(
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = { onSpeak(card.word) }) {
-                        Icon(Icons.Default.VolumeUp, contentDescription = "Phát âm", modifier = Modifier.size(20.dp))
+                        Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Phát âm", modifier = Modifier.size(20.dp))
                     }
                     IconButton(onClick = { onEdit(card) }) {
                         Icon(Icons.Default.Edit, contentDescription = "Sửa", modifier = Modifier.size(20.dp))

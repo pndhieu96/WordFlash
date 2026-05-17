@@ -46,6 +46,11 @@ class SentenceRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun getAllCardsOnce(): List<SentenceCard> =
+        dao.getAllOnce().map { it.toDomain() }
+
+    override suspend fun markAllSynced() = dao.markAllSynced()
+
     private fun SentenceCard.toEntity() = SentenceCardEntity(
         id = id,
         sentence = sentence,

@@ -29,4 +29,10 @@ interface SentenceCardDao {
 
     @Query("UPDATE sentence_cards SET memorizationLevel = :level, updatedAt = :updatedAt, lastReviewedAt = :lastReviewedAt, isSynced = 0 WHERE id = :id")
     suspend fun updateMemorizationLevel(id: String, level: Int, updatedAt: Long, lastReviewedAt: Long)
+
+    @Query("SELECT * FROM sentence_cards")
+    suspend fun getAllOnce(): List<SentenceCardEntity>
+
+    @Query("UPDATE sentence_cards SET isSynced = 1")
+    suspend fun markAllSynced()
 }

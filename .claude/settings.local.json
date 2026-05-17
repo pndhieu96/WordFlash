@@ -16,7 +16,9 @@
       "Bash(curl -s \"https://en.wikipedia.org/api/rest_v1/page/summary/Hello\")",
       "Bash(curl -s -I \"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/TelephoneHelloNellie.jpg/330px-TelephoneHelloNellie.jpg\")",
       "Bash(curl -s \"https://api.duckduckgo.com/?q=apple&format=json\")",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(xargs ls)",
+      "Bash(xargs cat)"
     ]
   }
 }

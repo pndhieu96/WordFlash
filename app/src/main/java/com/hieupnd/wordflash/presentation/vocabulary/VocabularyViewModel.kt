@@ -57,22 +57,19 @@ class VocabularyViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null, dictionaryEntry = null, isSaved = false) }
             searchWordUseCase(query)
                 .onSuccess { entry ->
+                    val capitalizedEntry = entry.copy(word = entry.word.replaceFirstChar { it.uppercaseChar() })
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            dictionaryEntry = entry,
+                            dictionaryEntry = capitalizedEntry,
                             viMeaning = "",
-                            isSaved = it.savedWordSet.contains(entry.word.lowercase()),
+                            isSaved = it.savedWordSet.contains(capitalizedEntry.word.lowercase()),
                             wordImages = emptyList(),
                             selectedImageUrl = ""
                         )
                     }
                     searchImages(entry.word)
-                    val firstDefinition = entry.meanings.firstOrNull()
-                        ?.definitions?.firstOrNull()?.definition
-                    if (!firstDefinition.isNullOrEmpty()) {
-                        translateDefinition(firstDefinition)
-                    }
+                    translateDefinition(entry.word)
                 }
                 .onFailure {
                     _uiState.update {
@@ -109,7 +106,7 @@ class VocabularyViewModel @Inject constructor(
             _uiState.update { it.copy(isTranslating = true) }
             translateWordUseCase(text)
                 .onSuccess { translated ->
-                    _uiState.update { it.copy(viMeaning = translated, isTranslating = false) }
+                    _uiState.update { it.copy(viMeaning = translated.replaceFirstChar { c -> c.uppercaseChar() }, isTranslating = false) }
                 }
                 .onFailure {
                     _uiState.update { it.copy(isTranslating = false) }
@@ -159,7 +156,7 @@ class VocabularyViewModel @Inject constructor(
                 meaning.definitions.filter { it.example.isNotEmpty() }.map { def ->
                     Example(enSentence = def.example, viSentence = "")
                 }
-            }
+            }.take(3)
             val meaning = state.viMeaning.trim().ifEmpty {
                 entry.meanings.firstOrNull()?.definitions?.firstOrNull()?.definition.orEmpty()
             }

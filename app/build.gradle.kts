@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.google.services)
     kotlin("kapt")
 }
 
@@ -71,6 +72,12 @@ dependencies {
     implementation(libs.gson)
     // Coil
     implementation(libs.coil.compose)
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    // Google Sign-In
+    implementation(libs.play.services.auth)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

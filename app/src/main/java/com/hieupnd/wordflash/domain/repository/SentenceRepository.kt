@@ -9,4 +9,6 @@ interface SentenceRepository {
     suspend fun updateCard(card: SentenceCard)
     suspend fun deleteCard(id: String)
     suspend fun updateMemorizationLevel(id: String, level: Int)
+    suspend fun getAllCardsOnce(): List<SentenceCard>
+    suspend fun markAllSynced()
 }

@@ -32,4 +32,10 @@ interface VocabularyCardDao {
 
     @Query("SELECT * FROM vocabulary_cards WHERE word = :word LIMIT 1")
     suspend fun getByWord(word: String): VocabularyCardEntity?
+
+    @Query("SELECT * FROM vocabulary_cards")
+    suspend fun getAllOnce(): List<VocabularyCardEntity>
+
+    @Query("UPDATE vocabulary_cards SET isSynced = 1")
+    suspend fun markAllSynced()
 }

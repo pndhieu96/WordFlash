@@ -9,7 +9,7 @@ interface ImageSearchApi {
     suspend fun searchImages(
         @Query("key") apiKey: String,
         @Query("q") query: String,
-        @Query("per_page") perPage: Int = 3,
+        @Query("per_page") perPage: Int = 5,
         @Query("image_type") imageType: String = "photo"
     ): PixabayResponse
 }

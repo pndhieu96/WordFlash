@@ -75,6 +75,11 @@ class VocabularyRepositoryImpl @Inject constructor(
     override suspend fun getCardByWord(word: String): VocabularyCard? =
         dao.getByWord(word)?.toDomain()
 
+    override suspend fun getAllCardsOnce(): List<VocabularyCard> =
+        dao.getAllOnce().map { it.toDomain() }
+
+    override suspend fun markAllSynced() = dao.markAllSynced()
+
     private fun VocabularyCardEntity.toDomain(): VocabularyCard {
         val type = object : TypeToken<List<ExampleJson>>() {}.type
         val exampleJsons: List<ExampleJson> = runCatching {

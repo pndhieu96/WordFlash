@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">WordFlash</string>
+    <!-- TODO: Replace with your real Web Client ID from Firebase Console (Authentication > Sign-in method > Google) -->
+    <string name="default_web_client_id" translatable="false">874334702166-3kqr5hjtle37qt5h5esm7qe0de3237ms.apps.googleusercontent.com</string>
 </resources>

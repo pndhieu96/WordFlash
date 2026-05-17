@@ -1,7 +1,9 @@
 package com.hieupnd.wordflash.presentation.sentence
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -418,10 +420,13 @@ private fun SentenceCollectionTab(
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(cards, key = { it.id }) { card ->
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = levelColors.getOrElse(card.memorizationLevel) { MaterialTheme.colorScheme.surface }
-                )
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 2.dp,
+                        color = levelColors.getOrElse(card.memorizationLevel) { MaterialTheme.colorScheme.outline },
+                        shape = MaterialTheme.shapes.medium
+                    )
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

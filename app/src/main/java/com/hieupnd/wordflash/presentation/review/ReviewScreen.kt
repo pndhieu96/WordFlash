@@ -24,8 +24,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import androidx.compose.material3.Button
@@ -212,7 +212,7 @@ private fun CardFront(item: ReviewItem, onSpeak: (String) -> Unit) {
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         IconButton(onClick = { onSpeak(item.card.word) }) {
-                            Icon(Icons.Default.VolumeUp, contentDescription = "Phát âm")
+                            Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Phát âm")
                         }
                     }
                     if (item.card.ipa.isNotEmpty()) {

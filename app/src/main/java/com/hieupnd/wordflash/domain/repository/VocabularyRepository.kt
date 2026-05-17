@@ -14,4 +14,6 @@ interface VocabularyRepository {
     suspend fun deleteCard(id: String)
     suspend fun updateMemorizationLevel(id: String, level: Int)
     suspend fun getCardByWord(word: String): VocabularyCard?
+    suspend fun getAllCardsOnce(): List<VocabularyCard>
+    suspend fun markAllSynced()
 }
