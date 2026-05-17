@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(./gradlew clean *)",
+      "Bash(unzip -l /Users/hieudev/StudioProjects/WordFlash/app/build/outputs/apk/debug/app-debug.apk)",
+      "Bash(jar tf *)",
+      "Bash(./gradlew :app:compileDebugKotlin --info)",
+      "Bash(./gradlew :app:kspDebugKotlin --info)",
+      "Bash(./gradlew :app:assembleDebug)",
+      "Bash(adb devices *)",
+      "Bash(./gradlew build *)",
+      "Bash(./gradlew assembleDebug)",
+      "WebFetch(domain:source.unsplash.com)",
+      "WebFetch(domain:en.wikipedia.org)",
+      "Bash(curl -s \"https://en.wikipedia.org/api/rest_v1/page/summary/Hello\")",
+      "Bash(curl -s -I \"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/TelephoneHelloNellie.jpg/330px-TelephoneHelloNellie.jpg\")",
+      "Bash(curl -s \"https://api.duckduckgo.com/?q=apple&format=json\")",
+      "Bash(python3 *)"
+    ]
+  }
+}

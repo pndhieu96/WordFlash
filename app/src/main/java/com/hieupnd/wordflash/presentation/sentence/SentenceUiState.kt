@@ -1,0 +1,30 @@
+package com.hieupnd.wordflash.presentation.sentence
+
+import com.hieupnd.wordflash.domain.model.SentenceCard
+
+data class StructureItem(
+    val displayName: String,
+    val category: String,  // "wordtype" | "role" | "custom"
+    val viName: String = "",
+    val description: String = ""
+)
+
+data class SentenceUiState(
+    val structureItems: List<StructureItem> = emptyList(),
+    val selectedComponentTab: Int = 0,
+    val focusedWordType: String? = null,
+    val focusedSentenceRole: String? = null,
+    val customInputName: String = "",
+    val customInputDesc: String = "",
+    val description: String = "",
+    val newExample: String = "",
+    val relatedExamples: List<String> = emptyList(),
+    val savedCards: List<SentenceCard> = emptyList(),
+    val saveSuccess: Boolean = false,
+    val error: String? = null,
+    val selectedTab: Int = 0,
+    val editingCard: SentenceCard? = null,
+    val deleteConfirmId: String? = null,
+) {
+    val sentence: String get() = structureItems.joinToString(" + ") { it.displayName }
+}

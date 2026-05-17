@@ -1,0 +1,228 @@
+package com.hieupnd.wordflash.presentation.vocabulary
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.hieupnd.wordflash.domain.model.Example
+import com.hieupnd.wordflash.domain.model.VocabularyCard
+import com.hieupnd.wordflash.domain.usecase.vocabulary.GetVocabularyCardsUseCase
+import com.hieupnd.wordflash.domain.usecase.vocabulary.SaveVocabularyCardUseCase
+import com.hieupnd.wordflash.domain.usecase.vocabulary.SearchWordImagesUseCase
+import com.hieupnd.wordflash.domain.usecase.vocabulary.SearchWordUseCase
+import com.hieupnd.wordflash.domain.usecase.vocabulary.UpdateVocabularyMemorizationUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.util.UUID
+import javax.inject.Inject
+
+@HiltViewModel
+class VocabularyViewModel @Inject constructor(
+    private val searchWordUseCase: SearchWordUseCase,
+    private val translateWordUseCase: com.hieupnd.wordflash.domain.usecase.vocabulary.TranslateWordUseCase,
+    private val searchWordImagesUseCase: SearchWordImagesUseCase,
+    private val saveVocabularyCardUseCase: SaveVocabularyCardUseCase,
+    private val updateVocabularyCardUseCase: com.hieupnd.wordflash.domain.usecase.vocabulary.UpdateVocabularyCardUseCase,
+    private val deleteVocabularyCardUseCase: com.hieupnd.wordflash.domain.usecase.vocabulary.DeleteVocabularyCardUseCase,
+    private val getVocabularyCardsUseCase: GetVocabularyCardsUseCase,
+    private val updateVocabularyMemorizationUseCase: UpdateVocabularyMemorizationUseCase
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(VocabularyUiState())
+    val uiState: StateFlow<VocabularyUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            getVocabularyCardsUseCase().collect { cards ->
+                _uiState.update {
+                    it.copy(
+                        savedCards = cards,
+                        savedWordSet = cards.map { c -> c.word.lowercase() }.toSet()
+                    )
+                }
+            }
+        }
+    }
+
+    fun onSearchQueryChange(query: String) {
+        _uiState.update { it.copy(searchQuery = query, error = null) }
+    }
+
+    fun searchWord() {
+        val query = _uiState.value.searchQuery.trim()
+        if (query.isEmpty()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null, dictionaryEntry = null, isSaved = false) }
+            searchWordUseCase(query)
+                .onSuccess { entry ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            dictionaryEntry = entry,
+                            viMeaning = "",
+                            isSaved = it.savedWordSet.contains(entry.word.lowercase()),
+                            wordImages = emptyList(),
+                            selectedImageUrl = ""
+                        )
+                    }
+                    searchImages(entry.word)
+                    val firstDefinition = entry.meanings.firstOrNull()
+                        ?.definitions?.firstOrNull()?.definition
+                    if (!firstDefinition.isNullOrEmpty()) {
+                        translateDefinition(firstDefinition)
+                    }
+                }
+                .onFailure {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Không tìm thấy từ '${query}'. Hãy kiểm tra lại chính tả."
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun searchImages(word: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingImages = true) }
+            searchWordImagesUseCase(word)
+                .onSuccess { images ->
+                    _uiState.update {
+                        it.copy(
+                            isLoadingImages = false,
+                            wordImages = images,
+                            selectedImageUrl = images.firstOrNull() ?: ""
+                        )
+                    }
+                }
+                .onFailure {
+                    _uiState.update { it.copy(isLoadingImages = false) }
+                }
+        }
+    }
+
+    private fun translateDefinition(text: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isTranslating = true) }
+            translateWordUseCase(text)
+                .onSuccess { translated ->
+                    _uiState.update { it.copy(viMeaning = translated, isTranslating = false) }
+                }
+                .onFailure {
+                    _uiState.update { it.copy(isTranslating = false) }
+                }
+        }
+    }
+
+    fun onViMeaningChange(meaning: String) {
+        _uiState.update { it.copy(viMeaning = meaning) }
+    }
+
+    fun onSelectImage(imageUrl: String) {
+        _uiState.update { it.copy(selectedImageUrl = imageUrl) }
+    }
+
+    fun searchImagesForEdit(word: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingEditImages = true) }
+            searchWordImagesUseCase(word)
+                .onSuccess { images ->
+                    _uiState.update {
+                        it.copy(
+                            isLoadingEditImages = false,
+                            editDialogImages = images
+                        )
+                    }
+                }
+                .onFailure {
+                    _uiState.update { it.copy(isLoadingEditImages = false) }
+                }
+        }
+    }
+
+    fun onSelectEditImage(imageUrl: String) {
+        _uiState.update { it.copy(editingCard = it.editingCard?.copy(imageUrl = imageUrl)) }
+    }
+
+    fun clearEditImages() {
+        _uiState.update { it.copy(editDialogImages = emptyList(), isLoadingEditImages = false) }
+    }
+
+    fun saveVocabularyCard() {
+        val state = _uiState.value
+        val entry = state.dictionaryEntry ?: return
+        viewModelScope.launch {
+            val examples = entry.meanings.flatMap { meaning ->
+                meaning.definitions.filter { it.example.isNotEmpty() }.map { def ->
+                    Example(enSentence = def.example, viSentence = "")
+                }
+            }
+            val meaning = state.viMeaning.trim().ifEmpty {
+                entry.meanings.firstOrNull()?.definitions?.firstOrNull()?.definition.orEmpty()
+            }
+            val card = VocabularyCard(
+                id = UUID.randomUUID().toString(),
+                word = entry.word,
+                ipa = entry.ipa,
+                audioUrl = entry.audioUrl,
+                meaning = meaning,
+                examples = examples,
+                memorizationLevel = 0,
+                updatedAt = System.currentTimeMillis(),
+                isSynced = false,
+                wordType = entry.wordType,
+                imageUrl = state.selectedImageUrl
+            )
+            saveVocabularyCardUseCase(card)
+            _uiState.update { it.copy(isSaved = true) }
+        }
+    }
+
+    fun updateMemorizationLevel(id: String, level: Int) {
+        viewModelScope.launch {
+            updateVocabularyMemorizationUseCase(id, level)
+        }
+    }
+
+    fun onTabSelected(tab: Int) {
+        _uiState.update { it.copy(selectedTab = tab) }
+    }
+
+    fun startEdit(card: VocabularyCard) {
+        _uiState.update { it.copy(editingCard = card) }
+    }
+
+    fun cancelEdit() {
+        _uiState.update { it.copy(editingCard = null) }
+    }
+
+    fun saveEdit(updated: VocabularyCard) {
+        viewModelScope.launch {
+            updateVocabularyCardUseCase(updated)
+            _uiState.update { it.copy(editingCard = null) }
+        }
+    }
+
+    fun requestDelete(id: String) {
+        _uiState.update { it.copy(deleteConfirmId = id) }
+    }
+
+    fun confirmDelete() {
+        val id = _uiState.value.deleteConfirmId ?: return
+        viewModelScope.launch {
+            deleteVocabularyCardUseCase(id)
+            _uiState.update { it.copy(deleteConfirmId = null) }
+        }
+    }
+
+    fun cancelDelete() {
+        _uiState.update { it.copy(deleteConfirmId = null) }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+}
