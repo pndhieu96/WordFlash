@@ -12,7 +12,7 @@
 | **Architecture** | Clean Architecture + MVVM |
 | **UI Framework** | Jetpack Compose + Material 3 |
 | **Local Database** | Room Database |
-| **Remote Database (Future)** | Firebase Firestore |
+| **Remote Database** | Firebase Firestore (Auth + Firestore — tích hợp Phase 3) |
 | **External APIs** | Pixabay API (Image Search), Dictionary API, Translation API |
 
 ## 3. Các Tính Năng Chính (Core Features)
@@ -29,16 +29,16 @@ Tính năng này cho phép người dùng tìm kiếm từ vựng và chủ đ�
 - **Từ gốc (Word)**: Từ tiếng Anh cần học
 - **Phiên âm (IPA)**: Cách phát âm chuẩn
 - **Phát âm (Audio)**: Nút bấm kích hoạt Text-to-Speech (TTS)
-- **Nghĩa của từ (Meaning)**: Định nghĩa chi tiết bằng tiếng Việt (hỗ trợ dịch tự động)
-- **Ví dụ (Examples)**: Danh sách các câu ví dụ (cặp EN + VI)
-- **Hình ảnh minh họa**: 3 ảnh từ Pixabay API, người dùng chọn 1 ảnh để lưu (hiển thị border + checkmark)
+- **Nghĩa của từ (Meaning)**: Dịch tự động nghĩa của **từ gốc** (không phải định nghĩa) qua MyMemory API; chữ đầu viết hoa
+- **Ví dụ (Examples)**: Tự động thêm tối đa **3 câu ví dụ** từ kết quả API khi lưu
+- **Hình ảnh minh họa**: **5 ảnh** từ Pixabay API + **1 ô xám "Không có ảnh"**, người dùng chọn 1 để lưu (hiển thị border + checkmark)
 
 **Hành động:**
 - Nút "Thêm Flashcard" để lưu toàn bộ thông tin vào Room Database
 - Nút "Sửa" để cập nhật:
   - Nghĩa tiếng Việt
   - IPA
-  - Ảnh (hiển thị ảnh hiện tại + nút "Thay đổi ảnh" để chọn 3 ảnh mới từ Pixabay)
+  - Ảnh (hiển thị ảnh hiện tại + nút "Thay đổi ảnh" để chọn 5 ảnh mới từ Pixabay + ô xám)
   - **Câu ví dụ (Examples)**: Danh sách ví dụ song ngữ EN/VI với nút X để xoá từng ví dụ; input field "Câu tiếng Anh" + "Nghĩa tiếng Việt (tuỳ chọn)" + nút "Thêm ví dụ" để thêm mới
 - Nút "Xoá" để xóa flashcard khỏi bộ sưu tập
 
@@ -47,10 +47,11 @@ Tính năng này cho phép người dùng tìm kiếm từ vựng và chủ đ�
 - Phân tách bằng HorizontalDivider nếu có ví dụ
 
 **Lưu ý kỹ thuật:**
-- Sử dụng Pixabay REST API cho tìm kiếm ảnh (cần free API key)
+- Sử dụng Pixabay REST API cho tìm kiếm ảnh (cần free API key); `perPage = 5`
 - AsyncImage từ Coil library với ContentScale.Crop
-- Hiển thị 3 thumbnail (90x90dp) trong Row, user click để chọn
+- `ImageSelectionGrid` composable: lưới 3 cột, hàng đầu = ô xám "Không có ảnh" (sentinel `""`) + 5 ảnh Pixabay; dùng `chunked(3)` để render từng hàng
 - Ảnh được chọn có border dày (3dp) + checkmark icon
+- Chữ đầu của từ tiếng Anh và nghĩa tiếng Việt tự động viết hoa (`replaceFirstChar { it.uppercaseChar() }`)
 - Edit dialog có `verticalScroll` để cuộn khi nội dung dài (ví dụ nhiều)
 - `Example` model: `enSentence: String`, `viSentence: String` — serialized JSON trong Room
 
@@ -119,7 +120,7 @@ description: String  — mô tả (từ data hoặc người dùng nhập)
   - Mô tả (Description)
   - Ví dụ liên quan (RelatedExamples) — thêm/xoá từng ví dụ
 - Nút "Xoá" để xóa câu
-- Hiển thị mức độ ghi nhớ với màu sắc khác nhau
+- Hiển thị mức độ ghi nhớ với **màu border** khác nhau (không đổi màu nền card)
 
 **Lưu ý kỹ thuật:**
 - Sử dụng `TabRow` lồng nhau: outer tab (Tạo cấu trúc / Bộ sưu tập), inner tab (3 loại component)
@@ -207,13 +208,18 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 - **Hilt**: Dependency injection
 - **Kotlin Coroutines**: Async programming
 - **Material 3**: Design system
+- **Firebase BOM 33.13.0**: Quản lý version Firebase
+- **Firebase Auth KTX**: Xác thực người dùng (Google Sign-In)
+- **Firebase Firestore KTX**: Cloud database đồng bộ
+- **Google Play Services Auth 21.3.0**: Google Sign-In client
+- **Google Services Gradle Plugin 4.4.2**: Tự sinh `R.string.default_web_client_id` từ `google-services.json`
 
 ## 6. Trạng Thái Triển Khai
 
 ### Hoàn thành ✅
 - [x] Màn hình Vocabulary với tìm kiếm từ điển
 - [x] Lưu/Sửa/Xoá flashcard từ vựng
-- [x] Tích hợp Pixabay Image API - hiển thị 3 ảnh + chọn
+- [x] Tích hợp Pixabay Image API - hiển thị 5 ảnh + 1 ô xám "không có ảnh" + chọn
 - [x] Edit dialog - đổi ảnh, nghĩa, IPA
 - [x] **Edit dialog - CRUD câu ví dụ song ngữ (EN + VI)** _(Phase 2)_
 - [x] **Hiển thị câu ví dụ trong card bộ sưu tập** _(Phase 2)_
@@ -228,11 +234,15 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 - [x] Màn hình Review/Learning với spaced repetition algorithm
 - [x] Flip card animation, 3-level rating system
 - [x] Collection tabs hiển thị ảnh và ví dụ
+- [x] **Border-only color indicator cho Vocabulary và Sentence cards** _(Phase 3)_
+- [x] **Tự động dịch từ gốc + viết hoa chữ đầu** _(Phase 3)_
+- [x] **Tự động thêm tối đa 3 câu ví dụ khi lưu** _(Phase 3)_
+- [x] **ImageSelectionGrid 5 ảnh + 1 ô xám** _(Phase 3)_
+- [x] **Firebase Authentication — Google Sign-In** _(Phase 3)_
+- [x] **Firebase Firestore sync — Vocabulary & Sentence cards** _(Phase 3)_
+- [x] **App logo — Vector adaptive icon** _(Phase 3)_
 
 ### Cần phát triển 📋
-- [ ] Firebase Firestore integration
-- [ ] Sync data to cloud
-- [ ] User authentication
 - [ ] Offline support enhancement
 - [ ] Performance optimization
 - [ ] Lưu `structureItems` chi tiết vào DB để cho phép edit lại cấu trúc câu
@@ -240,6 +250,95 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 ---
 
 ## 7. Lịch Sử Cập Nhật
+
+### Phase 3: Firebase Sync, UX Polish & App Icon (2026-05-17)
+
+**A. Border-only Color Indicator**
+
+**Lý do:** Đổi màu nền cả card làm giảm khả năng đọc nội dung; chỉ đổi màu border giữ nội dung rõ ràng hơn.
+
+**Cập nhật:**
+- ✅ `VocabularyScreen.kt` — `VocabularyCardItem`: xoá `containerColor`, thêm `Modifier.border(2.dp, levelColor, shape)` trên Card
+- ✅ `SentenceScreen.kt` — tương tự Vocabulary
+
+---
+
+**B. Auto-translate, Auto-capitalize, Limit Examples**
+
+**Lý do:** Giảm thao tác thủ công khi lưu thẻ — nghĩa tiếng Việt, viết hoa, và câu ví dụ tự điền sẵn.
+
+**Cập nhật:**
+- ✅ `VocabularyViewModel.kt` — dịch **từ gốc** (không phải định nghĩa) qua `translateDefinition(entry.word)`
+- ✅ Viết hoa chữ đầu từ tiếng Anh: `entry.word.replaceFirstChar { it.uppercaseChar() }`
+- ✅ Viết hoa chữ đầu nghĩa tiếng Việt sau khi dịch
+- ✅ Tự thêm tối đa 3 câu ví dụ từ Dictionary API khi lưu (`.take(3)`)
+
+---
+
+**C. ImageSelectionGrid 5+1**
+
+**Lý do:** 3 ảnh quá ít để chọn; thêm ô "không có ảnh" để người dùng chủ động bỏ chọn ảnh.
+
+**Cập nhật:**
+- ✅ `ImageSearchApi.kt` — `perPage` đổi từ 3 → 5
+- ✅ `VocabularyScreen.kt` — composable `ImageSelectionGrid`: lưới 3 cột, `listOf("") + images.take(5)`, ô xám sentinel `""`
+
+---
+
+**D. Firebase Sync**
+
+**Lý do:** Đồng bộ dữ liệu giữa các thiết bị, backup lên cloud để không mất dữ liệu.
+
+**Thiết kế đồng bộ:**
+- Local DB là source of truth
+- Nếu local rỗng → restore từ Firestore (thiết bị mới / clear data)
+- Nếu local có dữ liệu → card nào thiếu trên local nhưng có trên Firestore → xoá khỏi Firestore (orphan)
+- Batch write Firestore tối đa 400 documents / lần (giới hạn an toàn dưới 500)
+
+**Cấu trúc Firestore:**
+```
+users/{uid}/vocabularyCards/{cardId}
+users/{uid}/sentenceCards/{cardId}
+```
+
+**Files thêm mới:**
+- `domain/model/UserInfo.kt` — `data class UserInfo(uid, displayName, email, photoUrl)`
+- `domain/repository/AuthRepository.kt` — `getCurrentUser(): Flow<UserInfo?>`, `signInWithGoogle()`, `signOut()`
+- `domain/repository/SyncRepository.kt` — upload/download/delete cho vocab và sentence
+- `domain/usecase/sync/SyncDataUseCase.kt` — logic đồng bộ đầy đủ
+- `data/remote/firebase/FirebaseAuthRepositoryImpl.kt` — `callbackFlow` với `AuthStateListener`
+- `data/remote/firebase/FirebaseSyncRepositoryImpl.kt` — Firestore batch write, chunked 400
+- `di/FirebaseModule.kt` — provides `FirebaseAuth`, `FirebaseFirestore`
+- `presentation/sync/SyncUiState.kt` — `currentUser`, `isSyncing`, `syncError`, `lastSyncTime`, `syncResult`
+- `presentation/sync/SyncViewModel.kt` — `sync()`, `signOut()`, `onGoogleSignInResult()`, `clearError()`, `clearSyncResult()`
+
+**Files cập nhật:**
+- `VocabularyCardDao.kt`, `SentenceCardDao.kt` — thêm `getAllOnce()`, `markAllSynced()`
+- `VocabularyRepository.kt`, `SentenceRepository.kt` — interface mới
+- `VocabularyRepositoryImpl.kt`, `SentenceRepositoryImpl.kt` — implement
+- `di/RepositoryModule.kt` — bind `AuthRepository`, `SyncRepository`
+- `VocabularyScreen.kt` — TopAppBar với sync icon, người dùng icon + DropdownMenu, dialog kết quả sync
+
+**Setup Firebase (4 bước):**
+1. Tạo Firebase project
+2. Thêm Android app → tải `google-services.json` → đặt vào `app/`
+3. Bật Authentication → Google
+4. Bật Firestore Database
+> `R.string.default_web_client_id` được Google Services plugin tự sinh — không cần thủ công copy Web Client ID
+
+---
+
+**E. App Logo — Vector Adaptive Icon**
+
+**Lý do:** App cần icon nhận diện thương hiệu, thể hiện chủ đề flashcard học từ vựng.
+
+**Cập nhật:**
+- ✅ `ic_launcher_background.xml` — nền xanh đậm `#1565C0`
+- ✅ `ic_launcher_foreground.xml` — thẻ nền xanh nhạt (xoay -10°, `#90CAF9`) + thẻ trắng phía trước + accent bar `#BBDEFB` + tia sét vàng `#FFC107`
+
+**Build Status:** ✅ BUILD SUCCESSFUL
+
+---
 
 ### Phase 2: Examples CRUD & Sentence Builder Enhancement (2026-05-17)
 
