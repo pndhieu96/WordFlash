@@ -10,5 +10,5 @@ data class ReviewUiState(
     val totalItems: Int = 0
 ) {
     val currentItem: ReviewItem? get() = reviewItems.getOrNull(currentIndex)
-    val progress: Float get() = if (totalItems == 0) 0f else currentIndex.toFloat() / totalItems
+    val progress: Float get() = (currentIndex + 1).toFloat() / totalItems.coerceAtLeast(1)
 }

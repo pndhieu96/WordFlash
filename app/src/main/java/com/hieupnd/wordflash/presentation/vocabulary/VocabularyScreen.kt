@@ -84,7 +84,10 @@ import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.hieupnd.wordflash.presentation.sync.SyncViewModel
 import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
+import coil.request.ImageRequest
 import com.hieupnd.wordflash.domain.model.Example
 import com.hieupnd.wordflash.domain.model.VocabularyCard
 import com.hieupnd.wordflash.domain.model.WordMeaning
@@ -199,6 +202,9 @@ fun VocabularyScreen(
                 },
                 onViMeaningChange = viewModel::onViMeaningChange,
                 onSelectImage = viewModel::onSelectImage,
+                onCustomImageUrlChange = viewModel::onCustomImageUrlChange,
+                onAddManualExample = viewModel::addManualExample,
+                onRemoveManualExample = viewModel::removeManualExample,
                 onSave = viewModel::saveVocabularyCard,
                 onSpeak = { word -> tts?.speak(word, TextToSpeech.QUEUE_FLUSH, null, null) }
             )
@@ -217,6 +223,7 @@ fun VocabularyScreen(
         var editMeaning by remember(card.id) { mutableStateOf(card.meaning) }
         var editIpa by remember(card.id) { mutableStateOf(card.ipa) }
         var editImageUrl by remember(card.id) { mutableStateOf(card.imageUrl) }
+        var editCustomImageUrl by remember(card.id) { mutableStateOf("") }
         var editExamples by remember(card.id) { mutableStateOf(card.examples) }
         var newExampleEn by remember(card.id) { mutableStateOf("") }
         var newExampleVi by remember(card.id) { mutableStateOf("") }
@@ -260,9 +267,8 @@ fun VocabularyScreen(
                     )
 
                     if (editImageUrl.isNotEmpty()) {
-                        AsyncImage(
-                            model = editImageUrl,
-                            contentDescription = null,
+                        WordFlashAsyncImage(
+                            url = editImageUrl,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(120.dp)
@@ -282,12 +288,39 @@ fun VocabularyScreen(
                         }
                     }
 
-                    Button(
-                        onClick = { showImageSelector = true },
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Thay đổi ảnh")
+                        Button(
+                            onClick = { showImageSelector = true },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Tìm ảnh")
+                        }
+                        if (editImageUrl.isNotEmpty()) {
+                            TextButton(
+                                onClick = { editImageUrl = ""; editCustomImageUrl = "" }
+                            ) {
+                                Text("Xoá ảnh")
+                            }
+                        }
                     }
+
+                    OutlinedTextField(
+                        value = editCustomImageUrl,
+                        onValueChange = { editCustomImageUrl = it },
+                        label = { Text("Hoặc nhập URL ảnh") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        trailingIcon = {
+                            if (editCustomImageUrl.isNotBlank()) {
+                                TextButton(onClick = { editImageUrl = editCustomImageUrl.trim() }) {
+                                    Text("Áp dụng")
+                                }
+                            }
+                        }
+                    )
 
                     if (showImageSelector) {
                         when {
@@ -427,6 +460,16 @@ fun VocabularyScreen(
         )
     }
 
+    // Save/edit/delete error dialog
+    uiState.saveError?.let { error ->
+        AlertDialog(
+            onDismissRequest = viewModel::clearSaveError,
+            title = { Text("Lỗi") },
+            text = { Text(error) },
+            confirmButton = { TextButton(onClick = viewModel::clearSaveError) { Text("OK") } }
+        )
+    }
+
     // Sync error dialog
     syncUiState.syncError?.let { error ->
         AlertDialog(
@@ -462,9 +505,18 @@ private fun SearchTab(
     onSearch: () -> Unit,
     onViMeaningChange: (String) -> Unit,
     onSelectImage: (String) -> Unit,
+    onCustomImageUrlChange: (String) -> Unit,
+    onAddManualExample: (Example) -> Unit,
+    onRemoveManualExample: (Int) -> Unit,
     onSave: () -> Unit,
     onSpeak: (String) -> Unit
 ) {
+    var newExampleEn by remember { mutableStateOf("") }
+    var newExampleVi by remember { mutableStateOf("") }
+    LaunchedEffect(uiState.dictionaryEntry?.word) {
+        newExampleEn = ""
+        newExampleVi = ""
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -589,6 +641,137 @@ private fun SearchTab(
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = uiState.customImageUrl,
+                            onValueChange = onCustomImageUrlChange,
+                            label = { Text("Hoặc nhập URL ảnh tùy chỉnh") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        if (uiState.customImageUrl.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            WordFlashAsyncImage(
+                                url = uiState.customImageUrl,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Câu ví dụ",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        if (uiState.isTranslatingExamples) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                                Text("Đang dịch câu ví dụ...", style = MaterialTheme.typography.bodySmall)
+                            }
+                        } else {
+                            uiState.dictionaryExamples.forEach { example ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    Column(modifier = Modifier.padding(8.dp)) {
+                                        Text(
+                                            "• ${example.enSentence}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontStyle = FontStyle.Italic
+                                        )
+                                        if (example.viSentence.isNotEmpty()) {
+                                            Text(
+                                                "  ${example.viSentence}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+                        }
+                        uiState.manualExamples.forEachIndexed { index, example ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            example.enSentence,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontStyle = FontStyle.Italic
+                                        )
+                                        if (example.viSentence.isNotEmpty()) {
+                                            Text(
+                                                example.viSentence,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = { onRemoveManualExample(index) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+                        OutlinedTextField(
+                            value = newExampleEn,
+                            onValueChange = { newExampleEn = it },
+                            label = { Text("Câu ví dụ tiếng Anh") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                        )
+                        OutlinedTextField(
+                            value = newExampleVi,
+                            onValueChange = { newExampleVi = it },
+                            label = { Text("Dịch tiếng Việt (tuỳ chọn)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = {
+                                if (newExampleEn.isNotBlank()) {
+                                    onAddManualExample(Example(newExampleEn.trim(), newExampleVi.trim()))
+                                    newExampleEn = ""
+                                    newExampleVi = ""
+                                }
+                            })
+                        )
+                        Button(
+                            onClick = {
+                                if (newExampleEn.isNotBlank()) {
+                                    onAddManualExample(Example(newExampleEn.trim(), newExampleVi.trim()))
+                                    newExampleEn = ""
+                                    newExampleVi = ""
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = newExampleEn.isNotBlank()
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Thêm câu ví dụ")
+                        }
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = onSave,
@@ -606,6 +789,48 @@ private fun SearchTab(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun WordFlashAsyncImage(
+    url: String,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
+) {
+    val context = LocalContext.current
+    SubcomposeAsyncImage(
+        model = ImageRequest.Builder(context)
+            .data(url)
+            .crossfade(true)
+            .build(),
+        contentDescription = null,
+        modifier = modifier,
+        contentScale = contentScale
+    ) {
+        when (val state = painter.state) {
+            is AsyncImagePainter.State.Loading -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                }
+            }
+            is AsyncImagePainter.State.Error -> {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.errorContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            else -> SubcomposeAsyncImageContent()
         }
     }
 }
@@ -653,9 +878,8 @@ private fun ImageSelectionGrid(
                                 )
                             }
                         } else {
-                            AsyncImage(
-                                model = imageUrl,
-                                contentDescription = null,
+                            WordFlashAsyncImage(
+                                url = imageUrl,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
@@ -779,9 +1003,8 @@ private fun VocabularyCardItem(
                         .padding(top = 12.dp, start = 12.dp, end = 12.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
-                        model = card.imageUrl,
-                        contentDescription = null,
+                    WordFlashAsyncImage(
+                        url = card.imageUrl,
                         modifier = Modifier
                             .height(120.dp)
                             .clip(RoundedCornerShape(8.dp)),
@@ -846,9 +1069,8 @@ private fun VocabularyCardItem(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 AssistChip(
-                    onClick = { },
-                    enabled = false,
-                    label = { Text(levelLabels[card.memorizationLevel], style = MaterialTheme.typography.labelSmall) }
+                    onClick = { onUpdateLevel(card.id, (card.memorizationLevel + 1) % 3) },
+                    label = { Text(levelLabels.getOrElse(card.memorizationLevel) { "Không nhớ" }, style = MaterialTheme.typography.labelSmall) }
                 )
             }
         }

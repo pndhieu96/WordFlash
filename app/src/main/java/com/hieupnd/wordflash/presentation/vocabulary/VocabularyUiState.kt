@@ -1,6 +1,7 @@
 package com.hieupnd.wordflash.presentation.vocabulary
 
 import com.hieupnd.wordflash.domain.model.DictionaryEntry
+import com.hieupnd.wordflash.domain.model.Example
 import com.hieupnd.wordflash.domain.model.VocabularyCard
 
 data class VocabularyUiState(
@@ -13,6 +14,7 @@ data class VocabularyUiState(
     val viMeaning: String = "",
     val wordImages: List<String> = emptyList(),
     val selectedImageUrl: String = "",
+    val customImageUrl: String = "",
     val savedCards: List<VocabularyCard> = emptyList(),
     val savedWordSet: Set<String> = emptySet(),
     val isSaved: Boolean = false,
@@ -20,5 +22,9 @@ data class VocabularyUiState(
     val editingCard: VocabularyCard? = null,
     val deleteConfirmId: String? = null,
     val editDialogImages: List<String> = emptyList(),
-    val isLoadingEditImages: Boolean = false
+    val isLoadingEditImages: Boolean = false,
+    val manualExamples: List<Example> = emptyList(),
+    val dictionaryExamples: List<Example> = emptyList(),
+    val isTranslatingExamples: Boolean = false,
+    val saveError: String? = null
 )

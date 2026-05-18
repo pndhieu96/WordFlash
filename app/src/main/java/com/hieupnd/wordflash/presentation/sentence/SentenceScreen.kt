@@ -455,9 +455,8 @@ private fun SentenceCollectionTab(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     AssistChip(
-                        onClick = { },
-                        enabled = false,
-                        label = { Text(levelLabels[card.memorizationLevel], style = MaterialTheme.typography.labelSmall) }
+                        onClick = { onUpdateLevel(card.id, (card.memorizationLevel + 1) % 3) },
+                        label = { Text(levelLabels.getOrElse(card.memorizationLevel) { "Không nhớ" }, style = MaterialTheme.typography.labelSmall) }
                     )
                 }
             }

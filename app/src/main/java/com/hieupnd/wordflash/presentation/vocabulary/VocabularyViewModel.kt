@@ -10,6 +10,8 @@ import com.hieupnd.wordflash.domain.usecase.vocabulary.SearchWordImagesUseCase
 import com.hieupnd.wordflash.domain.usecase.vocabulary.SearchWordUseCase
 import com.hieupnd.wordflash.domain.usecase.vocabulary.UpdateVocabularyMemorizationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,7 +56,17 @@ class VocabularyViewModel @Inject constructor(
         val query = _uiState.value.searchQuery.trim()
         if (query.isEmpty()) return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null, dictionaryEntry = null, isSaved = false) }
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    error = null,
+                    dictionaryEntry = null,
+                    isSaved = false,
+                    manualExamples = emptyList(),
+                    dictionaryExamples = emptyList(),
+                    customImageUrl = ""
+                )
+            }
             searchWordUseCase(query)
                 .onSuccess { entry ->
                     val capitalizedEntry = entry.copy(word = entry.word.replaceFirstChar { it.uppercaseChar() })
@@ -70,6 +82,10 @@ class VocabularyViewModel @Inject constructor(
                     }
                     searchImages(entry.word)
                     translateDefinition(entry.word)
+                    val exampleSentences = entry.meanings
+                        .flatMap { m -> m.definitions.filter { d -> d.example.isNotEmpty() }.map { d -> d.example } }
+                        .take(3)
+                    translateExamples(exampleSentences)
                 }
                 .onFailure {
                     _uiState.update {
@@ -114,12 +130,40 @@ class VocabularyViewModel @Inject constructor(
         }
     }
 
+    private fun translateExamples(sentences: List<String>) {
+        if (sentences.isEmpty()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isTranslatingExamples = true) }
+            val translated = sentences.map { sentence ->
+                async {
+                    val vi = translateWordUseCase(sentence).getOrDefault("")
+                    Example(enSentence = sentence, viSentence = vi)
+                }
+            }.awaitAll()
+            _uiState.update { it.copy(dictionaryExamples = translated, isTranslatingExamples = false) }
+        }
+    }
+
     fun onViMeaningChange(meaning: String) {
         _uiState.update { it.copy(viMeaning = meaning) }
     }
 
     fun onSelectImage(imageUrl: String) {
         _uiState.update { it.copy(selectedImageUrl = imageUrl) }
+    }
+
+    fun onCustomImageUrlChange(url: String) {
+        _uiState.update { it.copy(customImageUrl = url) }
+    }
+
+    fun addManualExample(example: Example) {
+        _uiState.update { it.copy(manualExamples = it.manualExamples + example) }
+    }
+
+    fun removeManualExample(index: Int) {
+        _uiState.update {
+            it.copy(manualExamples = it.manualExamples.toMutableList().also { list -> list.removeAt(index) })
+        }
     }
 
     fun searchImagesForEdit(word: String) {
@@ -152,13 +196,13 @@ class VocabularyViewModel @Inject constructor(
         val state = _uiState.value
         val entry = state.dictionaryEntry ?: return
         viewModelScope.launch {
-            val examples = entry.meanings.flatMap { meaning ->
-                meaning.definitions.filter { it.example.isNotEmpty() }.map { def ->
-                    Example(enSentence = def.example, viSentence = "")
-                }
-            }.take(3)
+            val allExamples = state.dictionaryExamples + state.manualExamples
             val meaning = state.viMeaning.trim().ifEmpty {
                 entry.meanings.firstOrNull()?.definitions?.firstOrNull()?.definition.orEmpty()
+            }
+            val imageUrl = when {
+                state.customImageUrl.isNotBlank() -> state.customImageUrl.trim()
+                else -> state.selectedImageUrl
             }
             val card = VocabularyCard(
                 id = UUID.randomUUID().toString(),
@@ -166,15 +210,16 @@ class VocabularyViewModel @Inject constructor(
                 ipa = entry.ipa,
                 audioUrl = entry.audioUrl,
                 meaning = meaning,
-                examples = examples,
+                examples = allExamples,
                 memorizationLevel = 0,
                 updatedAt = System.currentTimeMillis(),
                 isSynced = false,
                 wordType = entry.wordType,
-                imageUrl = state.selectedImageUrl
+                imageUrl = imageUrl
             )
-            saveVocabularyCardUseCase(card)
-            _uiState.update { it.copy(isSaved = true) }
+            runCatching { saveVocabularyCardUseCase(card) }
+                .onSuccess { _uiState.update { it.copy(isSaved = true) } }
+                .onFailure { _uiState.update { it.copy(saveError = "Lưu thất bại. Vui lòng thử lại.") } }
         }
     }
 
@@ -198,8 +243,9 @@ class VocabularyViewModel @Inject constructor(
 
     fun saveEdit(updated: VocabularyCard) {
         viewModelScope.launch {
-            updateVocabularyCardUseCase(updated)
-            _uiState.update { it.copy(editingCard = null) }
+            runCatching { updateVocabularyCardUseCase(updated) }
+                .onSuccess { _uiState.update { it.copy(editingCard = null) } }
+                .onFailure { _uiState.update { it.copy(saveError = "Cập nhật thất bại. Vui lòng thử lại.") } }
         }
     }
 
@@ -210,8 +256,9 @@ class VocabularyViewModel @Inject constructor(
     fun confirmDelete() {
         val id = _uiState.value.deleteConfirmId ?: return
         viewModelScope.launch {
-            deleteVocabularyCardUseCase(id)
-            _uiState.update { it.copy(deleteConfirmId = null) }
+            runCatching { deleteVocabularyCardUseCase(id) }
+                .onSuccess { _uiState.update { it.copy(deleteConfirmId = null) } }
+                .onFailure { _uiState.update { it.copy(deleteConfirmId = null, saveError = "Xoá thất bại. Vui lòng thử lại.") } }
         }
     }
 
@@ -221,5 +268,9 @@ class VocabularyViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun clearSaveError() {
+        _uiState.update { it.copy(saveError = null) }
     }
 }

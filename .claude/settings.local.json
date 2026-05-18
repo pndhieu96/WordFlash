@@ -18,7 +18,9 @@
       "Bash(curl -s \"https://api.duckduckgo.com/?q=apple&format=json\")",
       "Bash(python3 *)",
       "Bash(xargs ls)",
-      "Bash(xargs cat)"
+      "Bash(xargs cat)",
+      "Bash(./gradlew :app:compileDebugKotlin)",
+      "Bash(grep -E \"\\\\.\\(xml|json|kt\\)$\")"
     ]
   }
 }

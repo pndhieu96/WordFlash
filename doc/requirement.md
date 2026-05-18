@@ -30,30 +30,41 @@ Tính năng này cho phép người dùng tìm kiếm từ vựng và chủ đ�
 - **Phiên âm (IPA)**: Cách phát âm chuẩn
 - **Phát âm (Audio)**: Nút bấm kích hoạt Text-to-Speech (TTS)
 - **Nghĩa của từ (Meaning)**: Dịch tự động nghĩa của **từ gốc** (không phải định nghĩa) qua MyMemory API; chữ đầu viết hoa
-- **Ví dụ (Examples)**: Tự động thêm tối đa **3 câu ví dụ** từ kết quả API khi lưu
-- **Hình ảnh minh họa**: **5 ảnh** từ Pixabay API + **1 ô xám "Không có ảnh"**, người dùng chọn 1 để lưu (hiển thị border + checkmark)
+- **Ví dụ (Examples)**:
+  - Tự động lấy tối đa 3 câu ví dụ từ Dictionary API khi tìm từ
+  - **Tự động dịch song song** từng câu sang tiếng Việt qua MyMemory API (hiển thị "Đang dịch câu ví dụ..." trong lúc chờ)
+  - Người dùng có thể **tự thêm câu ví dụ thủ công** (EN + VI tùy chọn) ngay trong Search tab trước khi lưu
+- **Hình ảnh minh họa**:
+  - 5 ảnh từ Pixabay API + 1 ô xám "Không có ảnh", người dùng chọn 1 để lưu (hiển thị border + checkmark)
+  - **Ô nhập URL ảnh tùy chỉnh** — người dùng paste URL bất kỳ; preview hiển thị ngay bên dưới; ưu tiên dùng URL tùy chỉnh nếu được nhập
 
 **Hành động:**
 - Nút "Thêm Flashcard" để lưu toàn bộ thông tin vào Room Database
 - Nút "Sửa" để cập nhật:
   - Nghĩa tiếng Việt
   - IPA
-  - Ảnh (hiển thị ảnh hiện tại + nút "Thay đổi ảnh" để chọn 5 ảnh mới từ Pixabay + ô xám)
+  - Ảnh: hiển thị ảnh hiện tại + nút "Tìm ảnh" (chọn 5 ảnh mới từ Pixabay + ô xám) + **ô nhập URL ảnh tùy chỉnh** với nút "Áp dụng"
   - **Câu ví dụ (Examples)**: Danh sách ví dụ song ngữ EN/VI với nút X để xoá từng ví dụ; input field "Câu tiếng Anh" + "Nghĩa tiếng Việt (tuỳ chọn)" + nút "Thêm ví dụ" để thêm mới
 - Nút "Xoá" để xóa flashcard khỏi bộ sưu tập
+- **Error handling**: Các thao tác thất bại hiển thị AlertDialog thông báo lỗi; không set trạng thái thành công khi thực ra thất bại
+
+**Chip mức độ ghi nhớ trong bộ sưu tập:**
+- Click chip để xoay vòng: Không nhớ (0) → Hơi nhớ (1) → Đã nhớ (2) → Không nhớ (0)
 
 **Hiển thị trong bộ sưu tập:**
-- Card từ vựng hiển thị: từ, IPA, nghĩa, và tối đa 3 câu ví dụ đầu tiên (italic, màu onSurfaceVariant)
+- Card từ vựng hiển thị: từ, IPA, nghĩa, và tối đa 3 câu ví dụ đầu tiên (EN italic + VI onSurfaceVariant)
 - Phân tách bằng HorizontalDivider nếu có ví dụ
 
 **Lưu ý kỹ thuật:**
 - Sử dụng Pixabay REST API cho tìm kiếm ảnh (cần free API key); `perPage = 5`
-- AsyncImage từ Coil library với ContentScale.Crop
+- API key Pixabay lưu trong `local.properties` (gitignored), expose qua `BuildConfig.PIXABAY_API_KEY`
+- `SubcomposeAsyncImage` từ Coil library — hiển thị `CircularProgressIndicator` khi đang tải, icon lỗi (nền errorContainer) khi tải thất bại, `crossfade(true)` cho animation mượt
 - `ImageSelectionGrid` composable: lưới 3 cột, hàng đầu = ô xám "Không có ảnh" (sentinel `""`) + 5 ảnh Pixabay; dùng `chunked(3)` để render từng hàng
 - Ảnh được chọn có border dày (3dp) + checkmark icon
 - Chữ đầu của từ tiếng Anh và nghĩa tiếng Việt tự động viết hoa (`replaceFirstChar { it.uppercaseChar() }`)
 - Edit dialog có `verticalScroll` để cuộn khi nội dung dài (ví dụ nhiều)
 - `Example` model: `enSentence: String`, `viSentence: String` — serialized JSON trong Room
+- Dịch câu ví dụ song song với `async { }.awaitAll()` — tối đa 3 lần gọi API đồng thời
 
 ### 3.2 Màn hình 2: Note Cấu Trúc Câu (Sắp xếp & Tạo câu)
 
@@ -121,6 +132,8 @@ description: String  — mô tả (từ data hoặc người dùng nhập)
   - Ví dụ liên quan (RelatedExamples) — thêm/xoá từng ví dụ
 - Nút "Xoá" để xóa câu
 - Hiển thị mức độ ghi nhớ với **màu border** khác nhau (không đổi màu nền card)
+- **Chip mức độ ghi nhớ clickable**: click để xoay vòng 0 → 1 → 2 → 0
+- **Error handling**: Thao tác thất bại hiển thị thông báo lỗi trong `error` state
 
 **Lưu ý kỹ thuật:**
 - Sử dụng `TabRow` lồng nhau: outer tab (Tạo cấu trúc / Bộ sưu tập), inner tab (3 loại component)
@@ -152,6 +165,9 @@ Hệ thống sẽ dựa vào cấp độ này để phân phối tần suất xu
 - **Ưu tiên trung bình**: Trạng thái "Hơi nhớ" → Xuất hiện ít hơn nhóm "Không nhớ"
 - **Ưu tiên thấp nhất**: Trạng thái "Đã nhớ" → Xuất hiện rất ít (chỉ để nhắc nhở định kỳ)
 
+**Progress bar:**
+- Hiển thị `(currentIndex + 1) / totalItems` — khớp với text "1/20" ngay từ card đầu tiên
+
 ## 4. Thiết Kế Cơ Sở Dữ Liệu (Database Design - Room to Firebase)
 
 Để đảm bảo sau này push dữ liệu lên Firebase mượt mà, cấu trúc bảng trong Room cần được thiết kế đồng bộ (sử dụng các trường ID duy nhất dạng String/UUID thay vì tự tăng Int của Room).
@@ -166,7 +182,7 @@ audioUrl: String (hoặc cờ để dùng TTS)
 meaning: String
 wordType: String (loại từ: noun, verb, adjective, ...)
 examples: String (JSON serialized List<Example> — mỗi Example: enSentence, viSentence)
-imageUrl: String (URL ảnh từ Pixabay - được user chọn từ 3 ảnh gợi ý)
+imageUrl: String (URL ảnh từ Pixabay hoặc URL tùy chỉnh do người dùng nhập)
 memorizationLevel: Int (0: Không nhớ, 1: Hơi nhớ, 2: Đã nhớ)
 updatedAt: Long (Timestamp để đồng bộ sau này)
 lastReviewedAt: Long (Thời gian ôn tập gần nhất)
@@ -197,16 +213,16 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 
 ### APIs được sử dụng
 - **Dictionary API**: https://api.dictionaryapi.dev/ (Từ điển tiếng Anh)
-- **Pixabay API**: https://pixabay.com/api/ (Tìm kiếm ảnh - cần free API key)
-- **MyMemory Translation API**: https://api.mymemory.translated.net/ (Dịch tiếng Việt)
+- **Pixabay API**: https://pixabay.com/api/ (Tìm kiếm ảnh - API key lưu trong `local.properties`, không commit)
+- **MyMemory Translation API**: https://api.mymemory.translated.net/ (Dịch tiếng Việt — dùng cho cả từ gốc lẫn câu ví dụ)
 
 ### Libraries chính
 - **Retrofit**: HTTP client
 - **Room**: Local database
 - **Jetpack Compose**: UI framework
-- **Coil**: Image loading (AsyncImage)
+- **Coil** (`SubcomposeAsyncImage`): Image loading với loading/error state tích hợp
 - **Hilt**: Dependency injection
-- **Kotlin Coroutines**: Async programming
+- **Kotlin Coroutines**: Async programming (bao gồm `async/awaitAll` cho dịch song song)
 - **Material 3**: Design system
 - **Firebase BOM 33.13.0**: Quản lý version Firebase
 - **Firebase Auth KTX**: Xác thực người dùng (Google Sign-In)
@@ -241,6 +257,15 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 - [x] **Firebase Authentication — Google Sign-In** _(Phase 3)_
 - [x] **Firebase Firestore sync — Vocabulary & Sentence cards** _(Phase 3)_
 - [x] **App logo — Vector adaptive icon** _(Phase 3)_
+- [x] **SubcomposeAsyncImage — loading indicator + error state cho toàn bộ ảnh** _(Phase 4)_
+- [x] **Auto-dịch câu ví dụ từ điển sang tiếng Việt khi tìm từ (song song)** _(Phase 4)_
+- [x] **Nhập URL ảnh tùy chỉnh trong Search tab và Edit dialog** _(Phase 4)_
+- [x] **Thêm câu ví dụ thủ công trong Search tab (khi thêm từ mới)** _(Phase 4)_
+- [x] **Chip mức độ ghi nhớ clickable — xoay vòng 0→1→2→0** _(Phase 4)_
+- [x] **Error handling: save/edit/delete hiển thị dialog lỗi khi thất bại** _(Phase 4)_
+- [x] **Pixabay API key chuyển sang BuildConfig qua local.properties** _(Phase 4)_
+- [x] **Fix progress bar Review: `(currentIndex+1)/totalItems`** _(Phase 4)_
+- [x] **Fix crash risk: `levelLabels.getOrElse(...)` thay vì direct array access** _(Phase 4)_
 
 ### Cần phát triển 📋
 - [ ] Offline support enhancement
@@ -250,6 +275,119 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 ---
 
 ## 7. Lịch Sử Cập Nhật
+
+### Phase 4: Bug Fixes, UX & Security (2026-05-18)
+
+**A. Cải thiện load ảnh (SubcomposeAsyncImage)**
+
+**Lý do:** `AsyncImage` không xử lý trạng thái loading/error, người dùng không biết ảnh đang tải hay đã thất bại.
+
+**Cập nhật:**
+- ✅ Tạo composable `WordFlashAsyncImage` wrapper dùng `SubcomposeAsyncImage` + `ImageRequest.Builder` với `crossfade(true)`
+- ✅ Hiển thị `CircularProgressIndicator` trong lúc tải
+- ✅ Hiển thị icon lỗi (nền `errorContainer`) khi tải thất bại
+- ✅ Áp dụng cho: `ImageSelectionGrid`, `VocabularyCardItem`, edit dialog, `ReviewScreen`
+- ✅ `ReviewScreen.kt` — thay `AsyncImage` bằng `SubcomposeAsyncImage` trực tiếp
+
+**Files thay đổi:** `VocabularyScreen.kt`, `ReviewScreen.kt`
+
+---
+
+**B. Auto-dịch câu ví dụ từ điển**
+
+**Lý do:** Câu ví dụ từ Dictionary API chỉ có tiếng Anh, người dùng phải tự dịch thủ công.
+
+**Cập nhật:**
+- ✅ `VocabularyViewModel.kt` — thêm `translateExamples(sentences)`: gọi `async { translateWordUseCase(sentence) }.awaitAll()` song song cho tối đa 3 câu
+- ✅ `VocabularyUiState.kt` — thêm `dictionaryExamples: List<Example>`, `isTranslatingExamples: Boolean`
+- ✅ `VocabularyScreen.kt` — SearchTab hiển thị "Đang dịch câu ví dụ..." khi đang chờ; hiển thị kết quả EN + VI trong card surfaceVariant
+- ✅ `saveVocabularyCard()` sử dụng `dictionaryExamples + manualExamples` thay vì extract tại thời điểm lưu
+
+**Files thay đổi:** `VocabularyViewModel.kt`, `VocabularyUiState.kt`, `VocabularyScreen.kt`
+
+---
+
+**C. Nhập URL ảnh tùy chỉnh**
+
+**Lý do:** Người dùng muốn dùng ảnh từ nguồn bên ngoài Pixabay thay vì bị giới hạn 5 ảnh gợi ý.
+
+**Cập nhật:**
+- ✅ `VocabularyUiState.kt` — thêm `customImageUrl: String`
+- ✅ `VocabularyViewModel.kt` — thêm `onCustomImageUrlChange(url)`; `saveVocabularyCard()` ưu tiên `customImageUrl` nếu không rỗng
+- ✅ `VocabularyScreen.kt` — SearchTab: field "Hoặc nhập URL ảnh tùy chỉnh" + preview `WordFlashAsyncImage` ngay bên dưới
+- ✅ Edit dialog: field "Hoặc nhập URL ảnh" + nút "Áp dụng" để set vào `editImageUrl`; nút "Xoá ảnh" nếu đang có ảnh
+
+**Files thay đổi:** `VocabularyViewModel.kt`, `VocabularyUiState.kt`, `VocabularyScreen.kt`
+
+---
+
+**D. Thêm câu ví dụ thủ công khi thêm từ**
+
+**Lý do:** Search tab chỉ hiển thị câu ví dụ từ từ điển, người dùng không thể thêm câu ví dụ riêng trước khi lưu.
+
+**Cập nhật:**
+- ✅ `VocabularyUiState.kt` — thêm `manualExamples: List<Example>`
+- ✅ `VocabularyViewModel.kt` — thêm `addManualExample(example)`, `removeManualExample(index)`; reset khi tìm từ mới
+- ✅ `VocabularyScreen.kt` — SearchTab: phần "Câu ví dụ" gồm danh sách từ điển (surfaceVariant) + danh sách thủ công (secondaryContainer, có nút xoá) + input EN/VI + nút "Thêm câu ví dụ"
+- ✅ `LaunchedEffect(word)` reset local state `newExampleEn/newExampleVi` khi từ thay đổi
+
+**Files thay đổi:** `VocabularyViewModel.kt`, `VocabularyUiState.kt`, `VocabularyScreen.kt`
+
+---
+
+**E. Chip mức độ ghi nhớ clickable**
+
+**Lý do:** Chip trong Collection tab bị `enabled = false` — người dùng không thể đổi mức độ từ màn Collection, phải vào Review mới đổi được.
+
+**Cập nhật:**
+- ✅ `VocabularyScreen.kt` — `VocabularyCardItem`: `AssistChip(onClick = { onUpdateLevel(card.id, (card.memorizationLevel + 1) % 3) }, enabled = true)`
+- ✅ `SentenceScreen.kt` — card item trong `SentenceCollectionTab`: tương tự
+- ✅ Cả 2 màn hình: dùng `levelLabels.getOrElse(...)` thay vì `levelLabels[index]`
+
+**Files thay đổi:** `VocabularyScreen.kt`, `SentenceScreen.kt`
+
+---
+
+**F. Error Handling cho save/edit/delete**
+
+**Lý do:** Các thao tác DB thất bại âm thầm — người dùng thấy thành công dù thực ra lỗi.
+
+**Cập nhật:**
+- ✅ `VocabularyViewModel.kt` — wrap `saveVocabularyCard()`, `saveEdit()`, `confirmDelete()` bằng `runCatching { }.onSuccess { }.onFailure { }`; `isSaved = true` chỉ set khi thành công
+- ✅ `VocabularyUiState.kt` — thêm `saveError: String? = null`; thêm `clearSaveError()`
+- ✅ `VocabularyScreen.kt` — thêm `AlertDialog` khi `uiState.saveError != null`
+- ✅ `SentenceViewModel.kt` — wrap `saveSentence()`, `saveEdit()`, `confirmDelete()` tương tự; dùng field `error` có sẵn
+- ✅ `SentenceScreen.kt` — error dialog đã có, tự động nhận lỗi từ save/delete
+
+**Files thay đổi:** `VocabularyViewModel.kt`, `VocabularyUiState.kt`, `VocabularyScreen.kt`, `SentenceViewModel.kt`
+
+---
+
+**G. Bảo mật API Key**
+
+**Lý do:** Pixabay API key hardcode trong `AppConfig.kt` có thể bị lộ khi public repo.
+
+**Cập nhật:**
+- ✅ `local.properties` — thêm `PIXABAY_API_KEY=...` (file đã có trong `.gitignore`)
+- ✅ `app/build.gradle.kts` — bật `buildConfig = true`; đọc key từ `local.properties` bằng `readLines()`, expose qua `buildConfigField`
+- ✅ `AppConfig.kt` — đổi từ `const val` hardcode sang `val PIXABAY_API_KEY: String get() = BuildConfig.PIXABAY_API_KEY`
+
+**Files thay đổi:** `AppConfig.kt`, `app/build.gradle.kts`, `local.properties`
+
+---
+
+**H. Fix progress bar Review**
+
+**Lý do:** Text hiển thị "1/20" nhưng progress bar ở 0% khi đang xem card đầu tiên — gây nhầm lẫn.
+
+**Cập nhật:**
+- ✅ `ReviewUiState.kt` — đổi `currentIndex.toFloat() / totalItems` → `(currentIndex + 1).toFloat() / totalItems.coerceAtLeast(1)`
+
+**Files thay đổi:** `ReviewUiState.kt`
+
+**Build Status:** ✅ BUILD SUCCESSFUL
+
+---
 
 ### Phase 3: Firebase Sync, UX Polish & App Icon (2026-05-17)
 

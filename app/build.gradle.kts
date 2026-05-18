@@ -8,6 +8,14 @@ plugins {
     kotlin("kapt")
 }
 
+val pixabayApiKey: String = rootProject.file("local.properties")
+    .takeIf { it.exists() }
+    ?.readLines()
+    ?.firstOrNull { it.startsWith("PIXABAY_API_KEY=") }
+    ?.removePrefix("PIXABAY_API_KEY=")
+    ?.trim()
+    ?: ""
+
 android {
     namespace = "com.hieupnd.wordflash"
     compileSdk = 36
@@ -20,6 +28,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "PIXABAY_API_KEY", "\"$pixabayApiKey\"")
     }
 
     buildTypes {
@@ -40,6 +49,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

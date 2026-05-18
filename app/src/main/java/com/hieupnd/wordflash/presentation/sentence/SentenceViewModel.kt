@@ -146,19 +146,22 @@ class SentenceViewModel @Inject constructor(
                 updatedAt = System.currentTimeMillis(),
                 isSynced = false
             )
-            saveSentenceCardUseCase(card)
-            _uiState.update {
-                it.copy(
-                    structureItems = emptyList(),
-                    description = "",
-                    newExample = "",
-                    relatedExamples = emptyList(),
-                    saveSuccess = true,
-                    error = null,
-                    customInputName = "",
-                    customInputDesc = ""
-                )
-            }
+            runCatching { saveSentenceCardUseCase(card) }
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            structureItems = emptyList(),
+                            description = "",
+                            newExample = "",
+                            relatedExamples = emptyList(),
+                            saveSuccess = true,
+                            error = null,
+                            customInputName = "",
+                            customInputDesc = ""
+                        )
+                    }
+                }
+                .onFailure { _uiState.update { it.copy(error = "Lưu thất bại. Vui lòng thử lại.") } }
         }
     }
 
@@ -188,8 +191,9 @@ class SentenceViewModel @Inject constructor(
 
     fun saveEdit(updated: SentenceCard) {
         viewModelScope.launch {
-            updateSentenceCardUseCase(updated)
-            _uiState.update { it.copy(editingCard = null) }
+            runCatching { updateSentenceCardUseCase(updated) }
+                .onSuccess { _uiState.update { it.copy(editingCard = null) } }
+                .onFailure { _uiState.update { it.copy(error = "Cập nhật thất bại. Vui lòng thử lại.") } }
         }
     }
 
@@ -200,8 +204,9 @@ class SentenceViewModel @Inject constructor(
     fun confirmDelete() {
         val id = _uiState.value.deleteConfirmId ?: return
         viewModelScope.launch {
-            deleteSentenceCardUseCase(id)
-            _uiState.update { it.copy(deleteConfirmId = null) }
+            runCatching { deleteSentenceCardUseCase(id) }
+                .onSuccess { _uiState.update { it.copy(deleteConfirmId = null) } }
+                .onFailure { _uiState.update { it.copy(deleteConfirmId = null, error = "Xoá thất bại. Vui lòng thử lại.") } }
         }
     }
 
