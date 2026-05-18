@@ -12,21 +12,21 @@
         android:rotation="-10">
         <path
             android:fillColor="#90CAF9"
-            android:pathData="M30,24 Q30,16 38,16 L74,16 Q82,16 82,24 L82,84 Q82,92 74,92 L38,92 Q30,92 30,84 Z" />
+            android:pathData="M38,34 Q38,29 43,29 L67,29 Q72,29 72,34 L72,74 Q72,79 67,79 L43,79 Q38,79 38,74 Z" />
     </group>
 
     <!-- Front card (white) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M22,26 Q22,18 30,18 L70,18 Q78,18 78,26 L78,82 Q78,90 70,90 L30,90 Q22,90 22,82 Z" />
+        android:pathData="M33,36 Q33,31 38,31 L65,31 Q70,31 70,36 L70,72 Q70,77 65,77 L38,77 Q33,77 33,72 Z" />
 
     <!-- Card top accent bar -->
     <path
         android:fillColor="#BBDEFB"
-        android:pathData="M22,26 Q22,18 30,18 L70,18 Q78,18 78,26 L78,36 L22,36 Z" />
+        android:pathData="M33,36 Q33,31 38,31 L65,31 Q70,31 70,36 L70,42 L33,42 Z" />
 
     <!-- Lightning bolt (gold) -->
     <path
         android:fillColor="#FFC107"
-        android:pathData="M52,42 L34,66 L46,66 L40,82 L70,58 L58,58 Z" />
+        android:pathData="M53,46 L41,62 L49,62 L45,72 L64,57 L57,57 Z" />
 </vector>
