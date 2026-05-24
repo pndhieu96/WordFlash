@@ -83,14 +83,16 @@ import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.hieupnd.wordflash.presentation.sync.SyncViewModel
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImagePainter
-import coil.compose.SubcomposeAsyncImage
-import coil.compose.SubcomposeAsyncImageContent
-import coil.request.ImageRequest
 import com.hieupnd.wordflash.domain.model.Example
 import com.hieupnd.wordflash.domain.model.VocabularyCard
 import com.hieupnd.wordflash.domain.model.WordMeaning
+import com.hieupnd.wordflash.presentation.components.WordFlashAsyncImage
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -183,17 +185,24 @@ fun VocabularyScreen(
             Tab(
                 selected = uiState.selectedTab == 0,
                 onClick = { viewModel.onTabSelected(0) },
-                text = { Text("Tìm kiếm") }
+                text = { Text("Bộ sưu tập (${uiState.savedCards.size})") }
             )
             Tab(
                 selected = uiState.selectedTab == 1,
                 onClick = { viewModel.onTabSelected(1) },
-                text = { Text("Bộ sưu tập (${uiState.savedCards.size})") }
+                text = { Text("Tìm kiếm") }
             )
         }
 
         when (uiState.selectedTab) {
-            0 -> SearchTab(
+            0 -> CollectionTab(
+                cards = uiState.savedCards,
+                onSpeak = { word -> tts?.speak(word, TextToSpeech.QUEUE_FLUSH, null, null) },
+                onUpdateLevel = viewModel::updateMemorizationLevel,
+                onEdit = viewModel::startEdit,
+                onDelete = viewModel::requestDelete
+            )
+            1 -> SearchTab(
                 uiState = uiState,
                 onQueryChange = viewModel::onSearchQueryChange,
                 onSearch = {
@@ -203,17 +212,16 @@ fun VocabularyScreen(
                 onViMeaningChange = viewModel::onViMeaningChange,
                 onSelectImage = viewModel::onSelectImage,
                 onCustomImageUrlChange = viewModel::onCustomImageUrlChange,
+                onImageSourceModeChange = viewModel::onImageSourceModeChange,
                 onAddManualExample = viewModel::addManualExample,
                 onRemoveManualExample = viewModel::removeManualExample,
                 onSave = viewModel::saveVocabularyCard,
-                onSpeak = { word -> tts?.speak(word, TextToSpeech.QUEUE_FLUSH, null, null) }
-            )
-            1 -> CollectionTab(
-                cards = uiState.savedCards,
                 onSpeak = { word -> tts?.speak(word, TextToSpeech.QUEUE_FLUSH, null, null) },
-                onUpdateLevel = viewModel::updateMemorizationLevel,
-                onEdit = viewModel::startEdit,
-                onDelete = viewModel::requestDelete
+                onSuggestionClick = { word ->
+                    viewModel.onSearchQueryChange(word)
+                    focusManager.clearFocus()
+                    viewModel.searchWord()
+                }
             )
         }
     }
@@ -345,6 +353,13 @@ fun VocabularyScreen(
                                     onSelect = { editImageUrl = it },
                                     spacing = 6.dp,
                                     checkIconSize = 24.dp
+                                )
+                            }
+                            uiState.editImagesError != null -> {
+                                Text(
+                                    "Lỗi: ${uiState.editImagesError}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
                                 )
                             }
                         }
@@ -506,10 +521,12 @@ private fun SearchTab(
     onViMeaningChange: (String) -> Unit,
     onSelectImage: (String) -> Unit,
     onCustomImageUrlChange: (String) -> Unit,
+    onImageSourceModeChange: (ImageSourceMode) -> Unit,
     onAddManualExample: (Example) -> Unit,
     onRemoveManualExample: (Int) -> Unit,
     onSave: () -> Unit,
-    onSpeak: (String) -> Unit
+    onSpeak: (String) -> Unit,
+    onSuggestionClick: (String) -> Unit
 ) {
     var newExampleEn by remember { mutableStateOf("") }
     var newExampleVi by remember { mutableStateOf("") }
@@ -546,11 +563,29 @@ private fun SearchTab(
         uiState.error?.let { error ->
             item {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                    Text(
-                        text = error,
-                        modifier = Modifier.padding(16.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(text = error, color = MaterialTheme.colorScheme.onErrorContainer)
+                        if (uiState.suggestions.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Có thể bạn muốn tìm:",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                uiState.suggestions.forEach { suggestion ->
+                                    SuggestionChip(
+                                        onClick = { onSuggestionClick(suggestion) },
+                                        label = { Text(suggestion) }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -593,9 +628,9 @@ private fun SearchTab(
                             label = { Text("Nghĩa tiếng Việt (tuỳ chọn)") },
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 2,
-                            enabled = !uiState.isTranslating,
+                            enabled = !uiState.isLoadingGeminiInfo,
                             trailingIcon = {
-                                if (uiState.isTranslating) {
+                                if (uiState.isLoadingGeminiInfo) {
                                     CircularProgressIndicator(modifier = Modifier.size(20.dp))
                                 }
                             }
@@ -603,62 +638,82 @@ private fun SearchTab(
                         Spacer(modifier = Modifier.height(12.dp))
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(12.dp))
-                        when {
-                            uiState.isLoadingImages -> {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        Text(
+                            "Ảnh minh hoạ",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            SegmentedButton(
+                                selected = uiState.imageSourceMode == ImageSourceMode.API,
+                                onClick = { onImageSourceModeChange(ImageSourceMode.API) },
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                            ) { Text("Tìm từ API") }
+                            SegmentedButton(
+                                selected = uiState.imageSourceMode == ImageSourceMode.URL,
+                                onClick = { onImageSourceModeChange(ImageSourceMode.URL) },
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                            ) { Text("Nhập URL") }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        if (uiState.imageSourceMode == ImageSourceMode.API) {
+                            when {
+                                uiState.isLoadingGeminiInfo -> {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                        Text(
+                                            "Đang tải thông tin từ Gemini...",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                uiState.wordImages.isNotEmpty() -> {
+                                    ImageSelectionGrid(
+                                        images = uiState.wordImages,
+                                        selectedUrl = uiState.selectedImageUrl,
+                                        onSelect = onSelectImage,
+                                        checkIconSize = 32.dp
+                                    )
+                                }
+                                uiState.imageSearchError != null -> {
                                     Text(
-                                        "Đang tìm ảnh liên quan...",
+                                        "Lỗi tải ảnh: ${uiState.imageSearchError}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                                else -> {
+                                    Text(
+                                        "Không tìm được ảnh liên quan.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
-                            uiState.wordImages.isNotEmpty() -> {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    "Chọn ảnh:",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                ImageSelectionGrid(
-                                    images = uiState.wordImages,
-                                    selectedUrl = uiState.selectedImageUrl,
-                                    onSelect = onSelectImage,
-                                    checkIconSize = 32.dp
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                            }
-                            else -> {
-                                Text(
-                                    "Không tìm được ảnh liên quan.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = uiState.customImageUrl,
-                            onValueChange = onCustomImageUrlChange,
-                            label = { Text("Hoặc nhập URL ảnh tùy chỉnh") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        if (uiState.customImageUrl.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            WordFlashAsyncImage(
-                                url = uiState.customImageUrl,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
-                                contentScale = ContentScale.Crop
+                        } else {
+                            OutlinedTextField(
+                                value = uiState.customImageUrl,
+                                onValueChange = onCustomImageUrlChange,
+                                label = { Text("Nhập URL ảnh") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
                             )
+                            if (uiState.customImageUrl.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                WordFlashAsyncImage(
+                                    url = uiState.customImageUrl,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(120.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         HorizontalDivider()
@@ -669,13 +724,13 @@ private fun SearchTab(
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        if (uiState.isTranslatingExamples) {
+                        if (uiState.isLoadingGeminiInfo) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                                Text("Đang dịch câu ví dụ...", style = MaterialTheme.typography.bodySmall)
+                                Text("Đang tải câu ví dụ từ Gemini...", style = MaterialTheme.typography.bodySmall)
                             }
                         } else {
                             uiState.dictionaryExamples.forEach { example ->
@@ -774,7 +829,14 @@ private fun SearchTab(
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
-                            onClick = onSave,
+                            onClick = {
+                                if (newExampleEn.isNotBlank()) {
+                                    onAddManualExample(Example(newExampleEn.trim(), newExampleVi.trim()))
+                                    newExampleEn = ""
+                                    newExampleVi = ""
+                                }
+                                onSave()
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !uiState.isSaved
                         ) {
@@ -789,48 +851,6 @@ private fun SearchTab(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun WordFlashAsyncImage(
-    url: String,
-    modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Crop
-) {
-    val context = LocalContext.current
-    SubcomposeAsyncImage(
-        model = ImageRequest.Builder(context)
-            .data(url)
-            .crossfade(true)
-            .build(),
-        contentDescription = null,
-        modifier = modifier,
-        contentScale = contentScale
-    ) {
-        when (val state = painter.state) {
-            is AsyncImagePainter.State.Loading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                }
-            }
-            is AsyncImagePainter.State.Error -> {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.errorContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-            else -> SubcomposeAsyncImageContent()
         }
     }
 }
@@ -855,7 +875,7 @@ private fun ImageSelectionGrid(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .aspectRatio(1f)
+                            .aspectRatio(4f / 3f)
                             .border(
                                 width = if (isSelected) 3.dp else 1.dp,
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
@@ -881,7 +901,7 @@ private fun ImageSelectionGrid(
                             WordFlashAsyncImage(
                                 url = imageUrl,
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.Fit
                             )
                         }
                         if (isSelected) {
@@ -1006,7 +1026,8 @@ private fun VocabularyCardItem(
                     WordFlashAsyncImage(
                         url = card.imageUrl,
                         modifier = Modifier
-                            .height(120.dp)
+                            .fillMaxWidth(0.67f)
+                            .aspectRatio(4f / 3f)
                             .clip(RoundedCornerShape(8.dp)),
                         contentScale = ContentScale.Fit
                     )
@@ -1015,8 +1036,6 @@ private fun VocabularyCardItem(
             Column(
                 modifier = Modifier
                     .padding(12.dp)
-                    .heightIn(max = 200.dp)
-                    .verticalScroll(rememberScrollState())
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(

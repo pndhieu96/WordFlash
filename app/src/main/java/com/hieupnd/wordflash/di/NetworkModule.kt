@@ -1,9 +1,8 @@
 package com.hieupnd.wordflash.di
 
 import com.google.gson.Gson
+import com.hieupnd.wordflash.data.remote.api.DatamuseApi
 import com.hieupnd.wordflash.data.remote.api.DictionaryApi
-import com.hieupnd.wordflash.data.remote.api.ImageSearchApi
-import com.hieupnd.wordflash.data.remote.api.TranslationApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -43,20 +42,10 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    @Named("translation")
-    fun provideTranslationRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit =
+    @Named("datamuse")
+    fun provideDatamuseRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit =
         Retrofit.Builder()
-            .baseUrl("https://api.mymemory.translated.net/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .build()
-
-    @Provides
-    @Singleton
-    @Named("pixabay")
-    fun providePixabayRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit =
-        Retrofit.Builder()
-            .baseUrl("https://pixabay.com/")
+            .baseUrl("https://api.datamuse.com/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
@@ -68,11 +57,6 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideTranslationApi(@Named("translation") retrofit: Retrofit): TranslationApi =
-        retrofit.create(TranslationApi::class.java)
-
-    @Provides
-    @Singleton
-    fun provideImageSearchApi(@Named("pixabay") retrofit: Retrofit): ImageSearchApi =
-        retrofit.create(ImageSearchApi::class.java)
+    fun provideDatamuseApi(@Named("datamuse") retrofit: Retrofit): DatamuseApi =
+        retrofit.create(DatamuseApi::class.java)
 }

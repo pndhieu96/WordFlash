@@ -20,7 +20,12 @@
       "Bash(xargs ls)",
       "Bash(xargs cat)",
       "Bash(./gradlew :app:compileDebugKotlin)",
-      "Bash(grep -E \"\\\\.\\(xml|json|kt\\)$\")"
+      "Bash(grep -E \"\\\\.\\(xml|json|kt\\)$\")",
+      "Bash(gh pr *)",
+      "Bash(xargs ls -la)",
+      "Bash(grep -E \"\\\\.kt$\")",
+      "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models?key=AIzaSyDoITbFJI64H66Ne8xg2OWOHge26i04ts4\")",
+      "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite?key=AIzaSyDoITbFJI64H66Ne8xg2OWOHge26i04ts4\")"
     ]
   }
 }

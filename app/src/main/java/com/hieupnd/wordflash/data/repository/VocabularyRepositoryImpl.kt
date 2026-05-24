@@ -2,15 +2,15 @@ package com.hieupnd.wordflash.data.repository
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.hieupnd.wordflash.AppConfig
 import com.hieupnd.wordflash.data.local.dao.VocabularyCardDao
 import com.hieupnd.wordflash.data.local.entity.ExampleJson
 import com.hieupnd.wordflash.data.local.entity.VocabularyCardEntity
+import com.hieupnd.wordflash.data.remote.api.DatamuseApi
 import com.hieupnd.wordflash.data.remote.api.DictionaryApi
-import com.hieupnd.wordflash.data.remote.api.ImageSearchApi
-import com.hieupnd.wordflash.data.remote.api.TranslationApi
+import com.hieupnd.wordflash.data.remote.gemini.GeminiService
 import com.hieupnd.wordflash.domain.model.DictionaryEntry
 import com.hieupnd.wordflash.domain.model.Example
+import com.hieupnd.wordflash.domain.model.GeminiWordInfo
 import com.hieupnd.wordflash.domain.model.VocabularyCard
 import com.hieupnd.wordflash.domain.model.WordDefinition
 import com.hieupnd.wordflash.domain.model.WordMeaning
@@ -22,17 +22,22 @@ import javax.inject.Inject
 class VocabularyRepositoryImpl @Inject constructor(
     private val dao: VocabularyCardDao,
     private val api: DictionaryApi,
-    private val translationApi: TranslationApi,
-    private val imageSearchApi: ImageSearchApi,
+    private val geminiService: GeminiService,
+    private val datamuseApi: DatamuseApi,
     private val gson: Gson
 ) : VocabularyRepository {
 
     override suspend fun searchWord(word: String): Result<DictionaryEntry> = runCatching {
         val response = api.searchWord(word)
         val first = response.first()
-        val ipa = first.phonetics?.firstOrNull { !it.text.isNullOrEmpty() }?.text
+        val bestPhonetic = first.phonetics?.firstOrNull {
+            !it.text.isNullOrEmpty() && !it.audio.isNullOrEmpty()
+        }
+        val ipa = bestPhonetic?.text
+            ?: first.phonetics?.firstOrNull { !it.text.isNullOrEmpty() }?.text
             ?: first.phonetic.orEmpty()
-        val audioUrl = first.phonetics?.firstOrNull { !it.audio.isNullOrEmpty() }?.audio.orEmpty()
+        val audioUrl = bestPhonetic?.audio
+            ?: first.phonetics?.firstOrNull { !it.audio.isNullOrEmpty() }?.audio.orEmpty()
         val meanings = first.meanings?.map { m ->
             WordMeaning(
                 partOfSpeech = m.partOfSpeech,
@@ -45,17 +50,8 @@ class VocabularyRepositoryImpl @Inject constructor(
         DictionaryEntry(word = first.word, ipa = ipa, audioUrl = audioUrl, meanings = meanings, wordType = wordType)
     }
 
-    override suspend fun translateToVietnamese(text: String): Result<String> = runCatching {
-        val response = translationApi.translate(text)
-        response.responseData?.translatedText ?: ""
-    }
-
-    override suspend fun searchImages(query: String): Result<List<String>> = runCatching {
-        val response = imageSearchApi.searchImages(
-            apiKey = AppConfig.PIXABAY_API_KEY,
-            query = query.trim()
-        )
-        response.hits.map { it.webformatURL }
+    override suspend fun getWordInfoFromGemini(word: String): Result<GeminiWordInfo> = runCatching {
+        geminiService.getWordInfo(word)
     }
 
     override fun getAllCards(): Flow<List<VocabularyCard>> =
@@ -79,6 +75,10 @@ class VocabularyRepositoryImpl @Inject constructor(
         dao.getAllOnce().map { it.toDomain() }
 
     override suspend fun markAllSynced() = dao.markAllSynced()
+
+    override suspend fun getWordSuggestions(query: String): Result<List<String>> = runCatching {
+        datamuseApi.suggest(query).take(5).map { it.word }
+    }
 
     private fun VocabularyCardEntity.toDomain(): VocabularyCard {
         val type = object : TypeToken<List<ExampleJson>>() {}.type

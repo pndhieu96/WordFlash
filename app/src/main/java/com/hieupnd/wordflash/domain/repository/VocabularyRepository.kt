@@ -1,13 +1,13 @@
 package com.hieupnd.wordflash.domain.repository
 
 import com.hieupnd.wordflash.domain.model.DictionaryEntry
+import com.hieupnd.wordflash.domain.model.GeminiWordInfo
 import com.hieupnd.wordflash.domain.model.VocabularyCard
 import kotlinx.coroutines.flow.Flow
 
 interface VocabularyRepository {
     suspend fun searchWord(word: String): Result<DictionaryEntry>
-    suspend fun translateToVietnamese(text: String): Result<String>
-    suspend fun searchImages(query: String): Result<List<String>>
+    suspend fun getWordInfoFromGemini(word: String): Result<GeminiWordInfo>
     fun getAllCards(): Flow<List<VocabularyCard>>
     suspend fun saveCard(card: VocabularyCard)
     suspend fun updateCard(card: VocabularyCard)
@@ -16,4 +16,5 @@ interface VocabularyRepository {
     suspend fun getCardByWord(word: String): VocabularyCard?
     suspend fun getAllCardsOnce(): List<VocabularyCard>
     suspend fun markAllSynced()
+    suspend fun getWordSuggestions(query: String): Result<List<String>>
 }

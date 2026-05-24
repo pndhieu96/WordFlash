@@ -8,12 +8,14 @@ plugins {
     kotlin("kapt")
 }
 
-val pixabayApiKey: String = rootProject.file("local.properties")
+val geminiApiKey: String = rootProject.file("local.properties")
     .takeIf { it.exists() }
     ?.readLines()
-    ?.firstOrNull { it.startsWith("PIXABAY_API_KEY=") }
-    ?.removePrefix("PIXABAY_API_KEY=")
+    ?.firstOrNull { it.contains("GEMINI_API_KEY") }
+    ?.split("=")
+    ?.lastOrNull()
     ?.trim()
+    ?.removeSurrounding("\"")
     ?: ""
 
 android {
@@ -28,7 +30,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "PIXABAY_API_KEY", "\"$pixabayApiKey\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
     }
 
     buildTypes {
@@ -41,11 +43,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlin {
-        jvmToolchain(11)
+        jvmToolchain(17)
     }
     buildFeatures {
         compose = true
@@ -88,6 +90,8 @@ dependencies {
     implementation(libs.firebase.firestore)
     // Google Sign-In
     implementation(libs.play.services.auth)
+    // Google Generative AI (Gemini)
+    implementation(libs.generativeai)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

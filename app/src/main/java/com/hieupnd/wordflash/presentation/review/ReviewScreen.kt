@@ -26,15 +26,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.foundation.background
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImagePainter
-import coil.compose.SubcomposeAsyncImage
-import coil.compose.SubcomposeAsyncImageContent
-import coil.request.ImageRequest
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.layout.ContentScale
+import com.hieupnd.wordflash.presentation.components.WordFlashAsyncImage
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -188,36 +182,15 @@ private fun CardFront(item: ReviewItem, onSpeak: (String) -> Unit) {
         when (item) {
             is ReviewItem.VocabItem -> {
                 if (item.card.imageUrl.isNotEmpty()) {
-                    SubcomposeAsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(item.card.imageUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
+                    WordFlashAsyncImage(
+                        url = item.card.imageUrl,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(140.dp)
                             .padding(8.dp)
                             .clip(RoundedCornerShape(12.dp)),
                         contentScale = ContentScale.Fit
-                    ) {
-                        when (val state = painter.state) {
-                            is AsyncImagePainter.State.Loading -> {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                                }
-                            }
-                            is AsyncImagePainter.State.Error -> {
-                                Box(
-                                    Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(24.dp))
-                                }
-                            }
-                            else -> SubcomposeAsyncImageContent()
-                        }
-                    }
+                    )
                 }
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
