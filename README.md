@@ -1,45 +1,137 @@
-# WordFlash - Ứng dụng Học Từ Vựng & Cấu Trúc Câu Thông Minh
+# WordFlash — Ứng Dụng Học Từ Vựng & Cấu Trúc Câu Thông Minh
 
-**WordFlash** là một ứng dụng Android hiện đại được thiết kế để giúp người dùng học và ghi nhớ từ vựng, mẫu câu tiếng Anh một cách hiệu quả thông qua phương pháp **Flashcard** kết hợp với thuật toán **Spaced Repetition (Lặp lại ngắt quãng)**.
-
-## 🚀 Tính Năng Nổi Bật
-
-### 1. Note Từ Vựng & Tra Từ Điển
-- **Tra cứu thông minh**: Kết nối trực tiếp với Dictionary API để cung cấp phiên âm (IPA), định nghĩa và phát âm.
-- **Minh họa bằng hình ảnh**: Tích hợp **Pixabay API** cho phép tìm kiếm và chọn ảnh minh họa trực quan cho mỗi từ vựng.
-- **Dịch tự động**: Hỗ trợ dịch nghĩa tiếng Việt nhanh chóng thông qua Translation API.
-- **Ví dụ song ngữ**: Quản lý danh sách các câu ví dụ (Anh-Việt) để hiểu cách dùng từ trong ngữ cảnh.
-
-### 2. Xây Dựng Cấu Trúc Câu (Sentence Builder)
-- **Hệ thống mảnh ghép**: Tạo cấu trúc câu bằng cách lắp ghép các thành phần ngữ pháp (Danh từ, Động từ, Chủ ngữ, Tân ngữ...) dưới dạng các **Chip** trực quan.
-- **Tùy biến linh hoạt**: Cho phép người dùng tự định nghĩa các thành phần cấu trúc riêng.
-- **Ghi chú ngữ pháp**: Lưu trữ mô tả chi tiết và các ví dụ thực tế cho từng cấu trúc câu.
-
-### 3. Ôn Tập Thông Minh (Spaced Repetition)
-- **Thuật toán ưu tiên**: Tự động phân phối tần suất xuất hiện của thẻ dựa trên mức độ thuộc bài (Không nhớ - Hơi nhớ - Đã nhớ).
-- **Trải nghiệm lật thẻ**: Giao diện thẻ 2 mặt (Flip card) sinh động với hiệu ứng 3D.
-- **Căn chỉnh thông minh**: Nội dung thẻ tự động tối ưu hóa không gian hiển thị, hỗ trợ cuộn khi nội dung dài.
-
-## 🛠 Công Nghệ Sử Dụng
-
-- **Ngôn ngữ**: Kotlin
-- **UI Framework**: Jetpack Compose với Material Design 3
-- **Kiến trúc**: Clean Architecture + MVVM
-- **Cơ sở dữ liệu**: Room Database (lưu trữ cục bộ, sẵn sàng cho Firebase Sync)
-- **Mạng (Networking)**: Retrofit, OkHttp
-- **Dependency Injection**: Dagger Hilt
-- **Xử lý ảnh**: Coil
-- **Đồng bộ**: Coroutines & Flow
-
-## 📈 Lộ Trình Phát Triển (Roadmap)
-
-- [x] Tích hợp Pixabay Image API.
-- [x] Hệ thống Spaced Repetition cơ bản.
-- [ ] Đồng bộ hóa dữ liệu đám mây với Firebase Firestore.
-- [ ] Hệ thống xác thực người dùng (Firebase Auth).
-- [ ] Lưu trữ cấu trúc câu chi tiết dưới dạng JSON để chỉnh sửa linh hoạt.
-- [ ] Chế độ học Offline nâng cao.
-- [ ] Thống kê tiến độ học tập bằng biểu đồ.
+**WordFlash** là ứng dụng Android giúp học và ghi nhớ từ vựng, cấu trúc câu tiếng Anh thông qua **Flashcard** kết hợp thuật toán **Spaced Repetition (Lặp lại ngắt quãng)**. Dữ liệu được lưu cục bộ bằng Room Database và có thể đồng bộ lên Firebase Firestore.
 
 ---
-*Dự án được phát triển với sự hỗ trợ của AI Assistant.*
+
+## Màn Hình Ứng Dụng
+
+### 1. Từ Vựng — Tìm Kiếm
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="doc/screenshots/vocabulary_search1.jpg" width="280"/><br/>
+      <b>Tra từ điển</b><br/>
+      Nhập từ tiếng Anh để tra cứu ngay IPA, từ loại, định nghĩa từ Dictionary API. Gemini tự động dịch nghĩa tiếng Việt ngắn gọn kèm từ loại.
+    </td>
+    <td align="center" width="50%">
+      <img src="doc/screenshots/vocabulary_search2.jpg" width="280"/><br/>
+      <b>Ảnh & Câu Ví Dụ</b><br/>
+      Nhập URL ảnh minh hoạ tuỳ chọn với preview trực tiếp. Gemini tự động sinh 3 câu ví dụ song ngữ EN–VI; người dùng có thể thêm câu ví dụ thủ công trước khi lưu.
+    </td>
+  </tr>
+</table>
+
+---
+
+### 2. Từ Vựng — Bộ Sưu Tập
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="doc/screenshots/vocabulary_collection.jpg" width="280"/><br/>
+      <b>Quản Lý Flashcard</b><br/>
+      Danh sách flashcard hiển thị ảnh minh hoạ, IPA, nghĩa tiếng Việt và câu ví dụ song ngữ. Chip mức độ ghi nhớ (<i>Không nhớ / Hơi nhớ / Đã nhớ</i>) có thể nhấn để xoay vòng. Border màu thể hiện trực quan mức độ thuộc bài.
+    </td>
+  </tr>
+</table>
+
+---
+
+### 3. Cấu Trúc Câu — Tạo Cấu Trúc
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="doc/screenshots/sentence_builder.jpg" width="280"/><br/>
+      <b>Sentence Builder</b><br/>
+      Chọn thành phần câu từ 3 tab: <b>Loại từ</b> (12 word types), <b>Thành phần</b> (11 sentence roles), <b>Tuỳ chỉnh</b>. Nhấn chip để xem mô tả chi tiết → nhấn + để thêm vào cấu trúc. Nút <i>"Tự động điền từ Gemini"</i> sinh mô tả cách dùng và 3 câu ví dụ EN–VI.
+    </td>
+  </tr>
+</table>
+
+---
+
+### 4. Cấu Trúc Câu — Bộ Sưu Tập
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="doc/screenshots/sentence_collection.jpg" width="280"/><br/>
+      <b>Quản Lý Cấu Trúc Câu</b><br/>
+      Mỗi card hiển thị tên cấu trúc, mô tả ngữ pháp và câu ví dụ song ngữ. Hỗ trợ sửa mô tả, thêm/xoá câu ví dụ, đánh dấu mức độ ghi nhớ.
+    </td>
+  </tr>
+</table>
+
+---
+
+### 5. Ôn Tập — Spaced Repetition
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="doc/screenshots/review1.jpg" width="280"/><br/>
+      <b>Mặt Trước Flashcard</b><br/>
+      Hiển thị từ / cấu trúc câu, ảnh minh hoạ và IPA. Thanh tiến trình và số thứ tự thẻ (VD: 1/25). Nhấn thẻ để lật xem đáp án.
+    </td>
+    <td align="center" width="50%">
+      <img src="doc/screenshots/review2.jpg" width="280"/><br/>
+      <b>Mặt Sau — Đánh Giá</b><br/>
+      Hiển thị nghĩa tiếng Việt cùng câu ví dụ song ngữ EN–VI. Ba nút đánh giá <i>Không nhớ / Hơi nhớ / Đã nhớ</i> điều chỉnh tần suất xuất hiện của thẻ trong các phiên tiếp theo.
+    </td>
+  </tr>
+</table>
+
+---
+
+## Tính Năng Nổi Bật
+
+| Tính năng | Chi tiết |
+|-----------|----------|
+| **Tra từ điển** | Dictionary API — IPA, từ loại, định nghĩa, phát âm TTS |
+| **Gợi ý từ** | Datamuse API khi không tìm thấy từ trong từ điển |
+| **Gemini AI** | Tự động dịch nghĩa VI, sinh câu ví dụ song ngữ, mô tả cấu trúc câu |
+| **Spaced Repetition** | Thuật toán trọng số theo mức độ ghi nhớ + số ngày kể từ lần ôn cuối |
+| **Sentence Builder** | 12 word types + 11 sentence roles + custom; tạo cấu trúc bằng chip trực quan |
+| **Nhắc nhở hàng ngày** | WorkManager — thông báo đẩy nhắc học, kiểm tra đã học hôm nay chưa |
+| **Firebase Sync** | Google Sign-In + Firestore đồng bộ flashcard lên đám mây |
+| **Giới hạn phiên học** | 20 từ vựng + 5 cấu trúc câu mỗi ngày để tránh quá tải |
+
+---
+
+## Công Nghệ Sử Dụng
+
+| Layer | Công nghệ |
+|-------|-----------|
+| **Ngôn ngữ** | Kotlin |
+| **UI** | Jetpack Compose + Material Design 3 |
+| **Kiến trúc** | Clean Architecture + MVVM |
+| **Database** | Room Database |
+| **Networking** | Retrofit + OkHttp |
+| **AI** | Google AI Android SDK (Gemini) |
+| **DI** | Dagger Hilt |
+| **Ảnh** | Coil (`SubcomposeAsyncImage`) |
+| **Background** | WorkManager |
+| **Cloud** | Firebase Auth + Firestore |
+| **Async** | Kotlin Coroutines + Flow |
+
+---
+
+## Cài Đặt & Chạy
+
+1. Clone repo
+2. Tạo file `local.properties` và thêm API key:
+   ```
+   GEMINI_API_KEY=<your_gemini_api_key>
+   ```
+3. Kết nối thiết bị Android hoặc khởi động emulator
+4. Chạy:
+   ```bash
+   ./gradlew installDebug
+   ```
+
+---
+
+*Dự án được phát triển với sự hỗ trợ của Claude Code (Anthropic).*
