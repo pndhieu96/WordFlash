@@ -1,5 +1,7 @@
 # WordFlash — Ứng Dụng Học Từ Vựng & Cấu Trúc Câu Thông Minh
 
+> **WordFlash** is an Android flashcard app for learning English vocabulary and sentence structures. Look up words via Dictionary API, get AI-powered Vietnamese translations and example sentences from Gemini, build grammar patterns with an interactive sentence builder, then reinforce everything through a spaced repetition review system — all stored locally with optional Firebase cloud sync.
+
 **WordFlash** là ứng dụng Android giúp học và ghi nhớ từ vựng, cấu trúc câu tiếng Anh thông qua **Flashcard** kết hợp thuật toán **Spaced Repetition (Lặp lại ngắt quãng)**. Dữ liệu được lưu cục bộ bằng Room Database và có thể đồng bộ lên Firebase Firestore.
 
 ---
