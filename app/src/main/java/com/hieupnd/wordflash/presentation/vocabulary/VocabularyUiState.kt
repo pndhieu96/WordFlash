@@ -22,5 +22,6 @@ data class VocabularyUiState(
     val deleteConfirmId: String? = null,
     val manualExamples: List<Example> = emptyList(),
     val dictionaryExamples: List<Example> = emptyList(),
-    val saveError: String? = null
+    val saveError: String? = null,
+    val collectionQuery: String = ""
 )

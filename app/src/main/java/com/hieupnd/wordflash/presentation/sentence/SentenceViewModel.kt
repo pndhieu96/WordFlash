@@ -218,6 +218,10 @@ class SentenceViewModel @Inject constructor(
         _uiState.update { it.copy(selectedTab = tab) }
     }
 
+    fun onCollectionQueryChange(query: String) {
+        _uiState.update { it.copy(collectionQuery = query) }
+    }
+
     fun startEdit(card: SentenceCard) {
         _uiState.update { it.copy(editingCard = card) }
     }

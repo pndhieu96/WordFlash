@@ -29,6 +29,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.remember
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -100,6 +102,8 @@ fun SentenceScreen(
         when (uiState.selectedTab) {
             0 -> SentenceCollectionTab(
                 cards = uiState.savedCards,
+                collectionQuery = uiState.collectionQuery,
+                onCollectionQueryChange = viewModel::onCollectionQueryChange,
                 onUpdateLevel = viewModel::updateMemorizationLevel,
                 onEdit = viewModel::startEdit,
                 onDelete = viewModel::requestDelete
@@ -457,20 +461,20 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
 @Composable
 private fun SentenceCollectionTab(
     cards: List<SentenceCard>,
+    collectionQuery: String,
+    onCollectionQueryChange: (String) -> Unit,
     onUpdateLevel: (String, Int) -> Unit,
     onEdit: (SentenceCard) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    if (cards.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = "Chưa có cấu trúc nào.\nHãy tạo ở tab Tạo cấu trúc!",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+    val filteredCards = remember(cards, collectionQuery) {
+        if (collectionQuery.isBlank()) cards
+        else cards.filter { card ->
+            card.sentence.contains(collectionQuery, ignoreCase = true) ||
+                card.description.contains(collectionQuery, ignoreCase = true)
         }
-        return
     }
+
     val levelLabels = listOf("Không nhớ", "Hơi nhớ", "Đã nhớ")
     val levelColors = listOf(
         MaterialTheme.colorScheme.errorContainer,
@@ -478,8 +482,49 @@ private fun SentenceCollectionTab(
         MaterialTheme.colorScheme.primaryContainer
     )
 
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(cards, key = { it.id }) { card ->
+    Column(modifier = Modifier.fillMaxSize()) {
+        OutlinedTextField(
+            value = collectionQuery,
+            onValueChange = onCollectionQueryChange,
+            placeholder = { Text("Tìm trong bộ sưu tập...") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (collectionQuery.isNotEmpty()) {
+                    IconButton(onClick = { onCollectionQueryChange("") }) {
+                        Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+        )
+
+        if (cards.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "Chưa có cấu trúc nào.\nHãy tạo ở tab Tạo cấu trúc!",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            return@Column
+        }
+
+        if (filteredCards.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "Không tìm thấy cấu trúc nào phù hợp.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            return@Column
+        }
+
+    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(filteredCards, key = { it.id }) { card ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -525,6 +570,7 @@ private fun SentenceCollectionTab(
                 }
             }
         }
+    }
     }
 }
 

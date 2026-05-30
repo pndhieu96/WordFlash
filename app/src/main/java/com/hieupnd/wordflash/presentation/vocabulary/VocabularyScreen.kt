@@ -197,6 +197,8 @@ fun VocabularyScreen(
         when (uiState.selectedTab) {
             0 -> CollectionTab(
                 cards = uiState.savedCards,
+                collectionQuery = uiState.collectionQuery,
+                onCollectionQueryChange = viewModel::onCollectionQueryChange,
                 onSpeak = { word -> tts?.speak(word, TextToSpeech.QUEUE_FLUSH, null, null) },
                 onUpdateLevel = viewModel::updateMemorizationLevel,
                 onEdit = viewModel::startEdit,
@@ -753,33 +755,76 @@ private fun WordMeaningSection(meaning: WordMeaning) {
 @Composable
 private fun CollectionTab(
     cards: List<VocabularyCard>,
+    collectionQuery: String,
+    onCollectionQueryChange: (String) -> Unit,
     onSpeak: (String) -> Unit,
     onUpdateLevel: (String, Int) -> Unit,
     onEdit: (VocabularyCard) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    if (cards.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = "Bộ sưu tập trống.\nHãy tìm kiếm và lưu từ vựng!",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+    val filteredCards = remember(cards, collectionQuery) {
+        if (collectionQuery.isBlank()) cards
+        else cards.filter { card ->
+            card.word.contains(collectionQuery, ignoreCase = true) ||
+                card.meaning.contains(collectionQuery, ignoreCase = true) ||
+                card.ipa.contains(collectionQuery, ignoreCase = true)
         }
-        return
     }
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(cards, key = { it.id }) { card ->
-            VocabularyCardItem(
-                card = card,
-                onSpeak = onSpeak,
-                onUpdateLevel = onUpdateLevel,
-                onEdit = onEdit,
-                onDelete = onDelete
-            )
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        OutlinedTextField(
+            value = collectionQuery,
+            onValueChange = onCollectionQueryChange,
+            placeholder = { Text("Tìm trong bộ sưu tập...") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (collectionQuery.isNotEmpty()) {
+                    IconButton(onClick = { onCollectionQueryChange("") }) {
+                        Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+        )
+
+        if (cards.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "Bộ sưu tập trống.\nHãy tìm kiếm và lưu từ vựng!",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            return@Column
+        }
+
+        if (filteredCards.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "Không tìm thấy từ nào phù hợp.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            return@Column
+        }
+
+        LazyColumn(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(filteredCards, key = { it.id }) { card ->
+                VocabularyCardItem(
+                    card = card,
+                    onSpeak = onSpeak,
+                    onUpdateLevel = onUpdateLevel,
+                    onEdit = onEdit,
+                    onDelete = onDelete
+                )
+            }
         }
     }
 }
