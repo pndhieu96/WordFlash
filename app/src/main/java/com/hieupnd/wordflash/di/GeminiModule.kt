@@ -7,6 +7,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -15,12 +16,24 @@ object GeminiModule {
 
     @Provides
     @Singleton
-    fun provideGenerativeModel(): GenerativeModel = GenerativeModel(
-        modelName = "gemini-2.5-flash-lite",
-        apiKey = BuildConfig.GEMINI_API_KEY,
-        generationConfig = generationConfig {
+    @Named("gemini_models")
+    fun provideGenerativeModels(): List<GenerativeModel> {
+        val config = generationConfig {
             responseMimeType = "application/json"
             temperature = 0.2f
         }
-    )
+        val modelNames = listOf(
+            "gemini-3.5-flash",
+            "gemini-3.1-flash-Lite",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite"
+        )
+        return modelNames.map { name ->
+            GenerativeModel(
+                modelName = name,
+                apiKey = BuildConfig.GEMINI_API_KEY,
+                generationConfig = config
+            )
+        }
+    }
 }

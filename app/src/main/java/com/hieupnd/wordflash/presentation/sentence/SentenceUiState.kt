@@ -1,5 +1,6 @@
 package com.hieupnd.wordflash.presentation.sentence
 
+import com.hieupnd.wordflash.domain.model.Example
 import com.hieupnd.wordflash.domain.model.SentenceCard
 
 data class StructureItem(
@@ -18,9 +19,11 @@ data class SentenceUiState(
     val customInputDesc: String = "",
     val description: String = "",
     val newExample: String = "",
-    val relatedExamples: List<String> = emptyList(),
+    val newExampleVi: String = "",
+    val relatedExamples: List<Example> = emptyList(),
     val savedCards: List<SentenceCard> = emptyList(),
     val saveSuccess: Boolean = false,
+    val isLoadingGemini: Boolean = false,
     val error: String? = null,
     val selectedTab: Int = 0,
     val editingCard: SentenceCard? = null,

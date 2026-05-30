@@ -1,6 +1,6 @@
 package com.hieupnd.wordflash.domain.model
 
-data class GeminiWordInfo(
-    val meaning: String,
+data class GeminiSentenceInfo(
+    val description: String,
     val examples: List<Example>
 )

@@ -2,9 +2,11 @@ package com.hieupnd.wordflash.presentation.sentence
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hieupnd.wordflash.domain.model.Example
 import com.hieupnd.wordflash.domain.model.SentenceCard
 import com.hieupnd.wordflash.domain.usecase.sentence.DeleteSentenceCardUseCase
 import com.hieupnd.wordflash.domain.usecase.sentence.GetSentenceCardsUseCase
+import com.hieupnd.wordflash.domain.usecase.sentence.GetSentenceInfoFromGeminiUseCase
 import com.hieupnd.wordflash.domain.usecase.sentence.SaveSentenceCardUseCase
 import com.hieupnd.wordflash.domain.usecase.sentence.UpdateSentenceCardUseCase
 import com.hieupnd.wordflash.domain.usecase.sentence.UpdateSentenceMemorizationUseCase
@@ -23,7 +25,8 @@ class SentenceViewModel @Inject constructor(
     private val updateSentenceCardUseCase: UpdateSentenceCardUseCase,
     private val deleteSentenceCardUseCase: DeleteSentenceCardUseCase,
     private val getSentenceCardsUseCase: GetSentenceCardsUseCase,
-    private val updateSentenceMemorizationUseCase: UpdateSentenceMemorizationUseCase
+    private val updateSentenceMemorizationUseCase: UpdateSentenceMemorizationUseCase,
+    private val getSentenceInfoFromGeminiUseCase: GetSentenceInfoFromGeminiUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SentenceUiState())
@@ -45,10 +48,21 @@ class SentenceViewModel @Inject constructor(
         _uiState.update { it.copy(newExample = example) }
     }
 
+    fun onNewExampleViChange(vi: String) {
+        _uiState.update { it.copy(newExampleVi = vi) }
+    }
+
     fun addExample() {
-        val example = _uiState.value.newExample.trim()
-        if (example.isEmpty()) return
-        _uiState.update { it.copy(relatedExamples = it.relatedExamples + example, newExample = "") }
+        val en = _uiState.value.newExample.trim()
+        if (en.isEmpty()) return
+        val vi = _uiState.value.newExampleVi.trim()
+        _uiState.update {
+            it.copy(
+                relatedExamples = it.relatedExamples + Example(enSentence = en, viSentence = vi),
+                newExample = "",
+                newExampleVi = ""
+            )
+        }
     }
 
     fun removeExampleAt(index: Int) {
@@ -167,6 +181,29 @@ class SentenceViewModel @Inject constructor(
 
     fun updateMemorizationLevel(id: String, level: Int) {
         viewModelScope.launch { updateSentenceMemorizationUseCase(id, level) }
+    }
+
+    fun generateFromGemini() {
+        val sentence = _uiState.value.sentence
+        if (sentence.isBlank()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingGemini = true, error = null) }
+            getSentenceInfoFromGeminiUseCase(sentence)
+                .onSuccess { info ->
+                    _uiState.update {
+                        it.copy(
+                            isLoadingGemini = false,
+                            description = info.description,
+                            relatedExamples = info.examples
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(isLoadingGemini = false, error = "Không thể tải từ Gemini: ${error.message}")
+                    }
+                }
+        }
     }
 
     fun clearError() {

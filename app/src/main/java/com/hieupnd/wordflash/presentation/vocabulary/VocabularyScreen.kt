@@ -210,9 +210,8 @@ fun VocabularyScreen(
                     viewModel.searchWord()
                 },
                 onViMeaningChange = viewModel::onViMeaningChange,
-                onSelectImage = viewModel::onSelectImage,
+                onIpaChange = viewModel::onIpaChange,
                 onCustomImageUrlChange = viewModel::onCustomImageUrlChange,
-                onImageSourceModeChange = viewModel::onImageSourceModeChange,
                 onAddManualExample = viewModel::addManualExample,
                 onRemoveManualExample = viewModel::removeManualExample,
                 onSave = viewModel::saveVocabularyCard,
@@ -230,24 +229,13 @@ fun VocabularyScreen(
     uiState.editingCard?.let { card ->
         var editMeaning by remember(card.id) { mutableStateOf(card.meaning) }
         var editIpa by remember(card.id) { mutableStateOf(card.ipa) }
-        var editImageUrl by remember(card.id) { mutableStateOf(card.imageUrl) }
-        var editCustomImageUrl by remember(card.id) { mutableStateOf("") }
+        var editCustomImageUrl by remember(card.id) { mutableStateOf(card.imageUrl) }
         var editExamples by remember(card.id) { mutableStateOf(card.examples) }
         var newExampleEn by remember(card.id) { mutableStateOf("") }
         var newExampleVi by remember(card.id) { mutableStateOf("") }
-        var showImageSelector by remember(card.id) { mutableStateOf(false) }
-
-        LaunchedEffect(card.id, showImageSelector) {
-            if (showImageSelector && uiState.editDialogImages.isEmpty()) {
-                viewModel.searchImagesForEdit(card.word)
-            }
-        }
 
         AlertDialog(
-            onDismissRequest = {
-                viewModel.clearEditImages()
-                viewModel.cancelEdit()
-            },
+            onDismissRequest = { viewModel.cancelEdit() },
             title = { Text("Sửa: ${card.word}") },
             text = {
                 Column(
@@ -274,96 +262,31 @@ fun VocabularyScreen(
                         fontWeight = FontWeight.SemiBold
                     )
 
-                    if (editImageUrl.isNotEmpty()) {
+                    if (editCustomImageUrl.isNotEmpty()) {
                         WordFlashAsyncImage(
-                            url = editImageUrl,
+                            url = editCustomImageUrl,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(120.dp)
                                 .clip(RoundedCornerShape(8.dp)),
                             contentScale = ContentScale.Crop
                         )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .clip(RoundedCornerShape(8.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Chưa có ảnh", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Button(
-                            onClick = { showImageSelector = true },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Tìm ảnh")
-                        }
-                        if (editImageUrl.isNotEmpty()) {
-                            TextButton(
-                                onClick = { editImageUrl = ""; editCustomImageUrl = "" }
-                            ) {
-                                Text("Xoá ảnh")
-                            }
-                        }
                     }
 
                     OutlinedTextField(
                         value = editCustomImageUrl,
                         onValueChange = { editCustomImageUrl = it },
-                        label = { Text("Hoặc nhập URL ảnh") },
+                        label = { Text("URL ảnh (tuỳ chọn)") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         trailingIcon = {
                             if (editCustomImageUrl.isNotBlank()) {
-                                TextButton(onClick = { editImageUrl = editCustomImageUrl.trim() }) {
-                                    Text("Áp dụng")
+                                IconButton(onClick = { editCustomImageUrl = "" }) {
+                                    Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
                     )
-
-                    if (showImageSelector) {
-                        when {
-                            uiState.isLoadingEditImages -> {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                                    Text("Đang tìm ảnh...", style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                            uiState.editDialogImages.isNotEmpty() -> {
-                                Text(
-                                    "Chọn ảnh:",
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                                ImageSelectionGrid(
-                                    images = uiState.editDialogImages,
-                                    selectedUrl = editImageUrl,
-                                    onSelect = { editImageUrl = it },
-                                    spacing = 6.dp,
-                                    checkIconSize = 24.dp
-                                )
-                            }
-                            uiState.editImagesError != null -> {
-                                Text(
-                                    "Lỗi: ${uiState.editImagesError}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
 
                     HorizontalDivider()
                     Text(
@@ -445,17 +368,13 @@ fun VocabularyScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.clearEditImages()
-                    viewModel.saveEdit(card.copy(meaning = editMeaning, ipa = editIpa, imageUrl = editImageUrl, examples = editExamples))
+                    viewModel.saveEdit(card.copy(meaning = editMeaning, ipa = editIpa, imageUrl = editCustomImageUrl.trim(), examples = editExamples))
                 }) {
                     Text("Lưu")
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    viewModel.clearEditImages()
-                    viewModel.cancelEdit()
-                }) { Text("Huỷ") }
+                TextButton(onClick = { viewModel.cancelEdit() }) { Text("Huỷ") }
             }
         )
     }
@@ -519,9 +438,8 @@ private fun SearchTab(
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onViMeaningChange: (String) -> Unit,
-    onSelectImage: (String) -> Unit,
+    onIpaChange: (String) -> Unit,
     onCustomImageUrlChange: (String) -> Unit,
-    onImageSourceModeChange: (ImageSourceMode) -> Unit,
     onAddManualExample: (Example) -> Unit,
     onRemoveManualExample: (Int) -> Unit,
     onSave: () -> Unit,
@@ -607,14 +525,15 @@ private fun SearchTab(
                                 }
                             }
                         }
-                        if (entry.ipa.isNotEmpty()) {
-                            Text(
-                                text = entry.ipa,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontStyle = FontStyle.Italic,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = uiState.ipaInput,
+                            onValueChange = onIpaChange,
+                            label = { Text("IPA (tuỳ chọn)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            placeholder = { Text("/.../ ") }
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
                         entry.meanings.forEach { meaning ->
                             WordMeaningSection(meaning)
@@ -644,76 +563,23 @@ private fun SearchTab(
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            SegmentedButton(
-                                selected = uiState.imageSourceMode == ImageSourceMode.API,
-                                onClick = { onImageSourceModeChange(ImageSourceMode.API) },
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                            ) { Text("Tìm từ API") }
-                            SegmentedButton(
-                                selected = uiState.imageSourceMode == ImageSourceMode.URL,
-                                onClick = { onImageSourceModeChange(ImageSourceMode.URL) },
-                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                            ) { Text("Nhập URL") }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        if (uiState.imageSourceMode == ImageSourceMode.API) {
-                            when {
-                                uiState.isLoadingGeminiInfo -> {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                                        Text(
-                                            "Đang tải thông tin từ Gemini...",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                                uiState.wordImages.isNotEmpty() -> {
-                                    ImageSelectionGrid(
-                                        images = uiState.wordImages,
-                                        selectedUrl = uiState.selectedImageUrl,
-                                        onSelect = onSelectImage,
-                                        checkIconSize = 32.dp
-                                    )
-                                }
-                                uiState.imageSearchError != null -> {
-                                    Text(
-                                        "Lỗi tải ảnh: ${uiState.imageSearchError}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                                else -> {
-                                    Text(
-                                        "Không tìm được ảnh liên quan.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        } else {
-                            OutlinedTextField(
-                                value = uiState.customImageUrl,
-                                onValueChange = onCustomImageUrlChange,
-                                label = { Text("Nhập URL ảnh") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
+                        OutlinedTextField(
+                            value = uiState.customImageUrl,
+                            onValueChange = onCustomImageUrlChange,
+                            label = { Text("Nhập URL ảnh (tuỳ chọn)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        if (uiState.customImageUrl.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            WordFlashAsyncImage(
+                                url = uiState.customImageUrl,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop
                             )
-                            if (uiState.customImageUrl.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                WordFlashAsyncImage(
-                                    url = uiState.customImageUrl,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(120.dp)
-                                        .clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         HorizontalDivider()
@@ -855,79 +721,6 @@ private fun SearchTab(
     }
 }
 
-@Composable
-private fun ImageSelectionGrid(
-    images: List<String>,
-    selectedUrl: String,
-    onSelect: (String) -> Unit,
-    spacing: Dp = 8.dp,
-    checkIconSize: Dp = 32.dp
-) {
-    val allOptions = listOf("") + images.take(5)
-    Column(verticalArrangement = Arrangement.spacedBy(spacing)) {
-        allOptions.chunked(3).forEach { chunk ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(spacing),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                chunk.forEach { imageUrl ->
-                    val isSelected = selectedUrl == imageUrl
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(4f / 3f)
-                            .border(
-                                width = if (isSelected) 3.dp else 1.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onSelect(imageUrl) }
-                    ) {
-                        if (imageUrl.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Không có ảnh",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        } else {
-                            WordFlashAsyncImage(
-                                url = imageUrl,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
-                            )
-                        }
-                        if (isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.3f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(checkIconSize)
-                                )
-                            }
-                        }
-                    }
-                }
-                repeat(3 - chunk.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun WordMeaningSection(meaning: WordMeaning) {

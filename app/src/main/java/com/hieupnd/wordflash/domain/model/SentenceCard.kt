@@ -4,7 +4,7 @@ data class SentenceCard(
     val id: String,
     val sentence: String,
     val description: String,
-    val relatedExamples: List<String>,
+    val relatedExamples: List<Example>,
     val memorizationLevel: Int = 0,
     val updatedAt: Long = System.currentTimeMillis(),
     val isSynced: Boolean = false,

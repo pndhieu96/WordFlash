@@ -71,19 +71,14 @@ class VocabularyViewModel @Inject constructor(
                     manualExamples = emptyList(),
                     dictionaryExamples = emptyList(),
                     customImageUrl = "",
-                    imageSearchError = null,
-                    wordImages = emptyList(),
-                    selectedImageUrl = "",
-                    viMeaning = ""
+                    viMeaning = "",
+                    ipaInput = ""
                 )
             }
 
             val dictionaryDeferred = async { searchWordUseCase(query) }
-            val geminiDeferred = if (BuildConfig.GEMINI_API_KEY.isBlank()) {
-                null
-            } else {
-                async { getWordInfoFromGeminiUseCase(query) }
-            }
+            val geminiDeferred = if (BuildConfig.GEMINI_API_KEY.isBlank()) null
+                                 else async { getWordInfoFromGeminiUseCase(query) }
 
             dictionaryDeferred.await()
                 .onSuccess { entry ->
@@ -93,41 +88,29 @@ class VocabularyViewModel @Inject constructor(
                             isLoading = false,
                             isLoadingGeminiInfo = geminiDeferred != null,
                             dictionaryEntry = capitalizedEntry,
+                            ipaInput = capitalizedEntry.ipa,
                             isSaved = it.savedWordSet.contains(capitalizedEntry.word.lowercase())
                         )
                     }
 
                     if (geminiDeferred == null) {
-                        _uiState.update {
-                            it.copy(
-                                isLoadingGeminiInfo = false,
-                                imageSearchError = "Gemini API Key chưa được cấu hình trong local.properties"
-                            )
-                        }
-                        return@onSuccess
+                        _uiState.update { it.copy(isLoadingGeminiInfo = false) }
+                    } else {
+                        geminiDeferred.await()
+                            .onSuccess { geminiInfo ->
+                                _uiState.update {
+                                    it.copy(
+                                        isLoadingGeminiInfo = false,
+                                        viMeaning = geminiInfo.meaning,
+                                        dictionaryExamples = geminiInfo.examples
+                                    )
+                                }
+                            }
+                            .onFailure { error ->
+                                Log.e("VocabularyViewModel", "Gemini error", error)
+                                _uiState.update { it.copy(isLoadingGeminiInfo = false) }
+                            }
                     }
-
-                    geminiDeferred.await()
-                        .onSuccess { geminiInfo ->
-                            _uiState.update {
-                                it.copy(
-                                    isLoadingGeminiInfo = false,
-                                    viMeaning = geminiInfo.meaning,
-                                    dictionaryExamples = geminiInfo.examples,
-                                    wordImages = geminiInfo.imageUrls,
-                                    selectedImageUrl = geminiInfo.imageUrls.firstOrNull() ?: ""
-                                )
-                            }
-                        }
-                        .onFailure { error ->
-                            Log.e("VocabularyViewModel", "Gemini error", error)
-                            _uiState.update {
-                                it.copy(
-                                    isLoadingGeminiInfo = false,
-                                    imageSearchError = "Không tải được thông tin từ Gemini: ${error.message}"
-                                )
-                            }
-                        }
                 }
                 .onFailure {
                     geminiDeferred?.cancel()
@@ -147,8 +130,8 @@ class VocabularyViewModel @Inject constructor(
         _uiState.update { it.copy(viMeaning = meaning) }
     }
 
-    fun onSelectImage(imageUrl: String) {
-        _uiState.update { it.copy(selectedImageUrl = imageUrl) }
+    fun onIpaChange(ipa: String) {
+        _uiState.update { it.copy(ipaInput = ipa) }
     }
 
     fun onCustomImageUrlChange(url: String) {
@@ -165,34 +148,6 @@ class VocabularyViewModel @Inject constructor(
         }
     }
 
-    fun searchImagesForEdit(word: String) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingEditImages = true, editImagesError = null) }
-            getWordInfoFromGeminiUseCase(word)
-                .onSuccess { info ->
-                    _uiState.update {
-                        it.copy(isLoadingEditImages = false, editDialogImages = info.imageUrls)
-                    }
-                }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoadingEditImages = false,
-                            editImagesError = error.message ?: "Không tải được ảnh từ Gemini"
-                        )
-                    }
-                }
-        }
-    }
-
-    fun onSelectEditImage(imageUrl: String) {
-        _uiState.update { it.copy(editingCard = it.editingCard?.copy(imageUrl = imageUrl)) }
-    }
-
-    fun clearEditImages() {
-        _uiState.update { it.copy(editDialogImages = emptyList(), isLoadingEditImages = false, editImagesError = null) }
-    }
-
     fun saveVocabularyCard() {
         val state = _uiState.value
         val entry = state.dictionaryEntry ?: return
@@ -201,14 +156,10 @@ class VocabularyViewModel @Inject constructor(
             val meaning = state.viMeaning.trim().ifEmpty {
                 entry.meanings.firstOrNull()?.definitions?.firstOrNull()?.definition.orEmpty()
             }
-            val imageUrl = when {
-                state.customImageUrl.isNotBlank() -> state.customImageUrl.trim()
-                else -> state.selectedImageUrl
-            }
             val card = VocabularyCard(
                 id = UUID.randomUUID().toString(),
                 word = entry.word,
-                ipa = entry.ipa,
+                ipa = state.ipaInput.trim(),
                 audioUrl = entry.audioUrl,
                 meaning = meaning,
                 examples = allExamples,
@@ -216,7 +167,7 @@ class VocabularyViewModel @Inject constructor(
                 updatedAt = System.currentTimeMillis(),
                 isSynced = false,
                 wordType = entry.wordType,
-                imageUrl = imageUrl
+                imageUrl = state.customImageUrl.trim()
             )
             runCatching { saveVocabularyCardUseCase(card) }
                 .onSuccess { _uiState.update { it.copy(isSaved = true) } }
@@ -273,10 +224,6 @@ class VocabularyViewModel @Inject constructor(
 
     fun clearSaveError() {
         _uiState.update { it.copy(saveError = null) }
-    }
-
-    fun onImageSourceModeChange(mode: ImageSourceMode) {
-        _uiState.update { it.copy(imageSourceMode = mode) }
     }
 
     private fun fetchSuggestions(query: String) {

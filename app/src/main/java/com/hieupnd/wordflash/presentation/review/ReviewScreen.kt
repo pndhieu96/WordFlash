@@ -1,13 +1,14 @@
 package com.hieupnd.wordflash.presentation.review
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.speech.tts.TextToSpeech
-import androidx.compose.animation.AnimatedContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,10 +26,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.layout.ContentScale
 import com.hieupnd.wordflash.presentation.components.WordFlashAsyncImage
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -39,11 +44,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +64,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hieupnd.wordflash.domain.model.ReviewItem
@@ -67,6 +78,13 @@ fun ReviewScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) showTimePicker = true
+    }
 
     val tts = remember {
         var instance: TextToSpeech? = null
@@ -83,6 +101,33 @@ fun ReviewScreen(
         TopAppBar(
             title = { Text("Ôn tập") },
             actions = {
+                if (uiState.hasStudiedToday) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = "Đã học hôm nay",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(end = 4.dp).size(24.dp)
+                    )
+                }
+                IconButton(onClick = {
+                    if (uiState.notificationHour >= 0) {
+                        viewModel.cancelNotification()
+                    } else {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                            != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            showTimePicker = true
+                        }
+                    }
+                }) {
+                    Icon(
+                        if (uiState.notificationHour >= 0) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                        contentDescription = "Thông báo"
+                    )
+                }
                 IconButton(onClick = viewModel::restartSession) {
                     Icon(Icons.Default.Refresh, contentDescription = "Bắt đầu lại")
                 }
@@ -90,7 +135,10 @@ fun ReviewScreen(
         )
 
         when {
-            uiState.isComplete -> CompletionScreen(onRestart = viewModel::restartSession)
+            uiState.isComplete -> CompletionScreen(
+                hasStudiedToday = uiState.hasStudiedToday,
+                onRestart = viewModel::restartSession
+            )
             uiState.reviewItems.isEmpty() -> EmptyReviewScreen()
             else -> ReviewContent(
                 uiState = uiState,
@@ -99,6 +147,18 @@ fun ReviewScreen(
                 onSpeak = { word -> tts?.speak(word, TextToSpeech.QUEUE_FLUSH, null, null) }
             )
         }
+    }
+
+    if (showTimePicker) {
+        NotificationTimePickerDialog(
+            initialHour = if (uiState.notificationHour >= 0) uiState.notificationHour else 20,
+            initialMinute = uiState.notificationMinute,
+            onDismiss = { showTimePicker = false },
+            onConfirm = { hour, minute ->
+                viewModel.setNotificationTime(hour, minute)
+                showTimePicker = false
+            }
+        )
     }
 }
 
@@ -268,6 +328,7 @@ private fun CardBack(item: ReviewItem) {
                 if (item.card.examples.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     item.card.examples.take(2).forEach { example ->
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "\"${example.enSentence}\"",
                             style = MaterialTheme.typography.bodySmall,
@@ -275,6 +336,14 @@ private fun CardBack(item: ReviewItem) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
+                        if (example.viSentence.isNotEmpty()) {
+                            Text(
+                                text = example.viSentence,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
@@ -290,12 +359,22 @@ private fun CardBack(item: ReviewItem) {
                 if (item.card.relatedExamples.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     item.card.relatedExamples.take(2).forEach { ex ->
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "• $ex",
+                            text = "\"${ex.enSentence}\"",
                             style = MaterialTheme.typography.bodySmall,
+                            fontStyle = FontStyle.Italic,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
+                        if (ex.viSentence.isNotEmpty()) {
+                            Text(
+                                text = ex.viSentence,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
@@ -334,9 +413,18 @@ private fun RatingButtons(onRate: (Int) -> Unit) {
 }
 
 @Composable
-private fun CompletionScreen(onRestart: () -> Unit) {
+private fun CompletionScreen(hasStudiedToday: Boolean, onRestart: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+            if (hasStudiedToday) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             Text(
                 text = "Hoàn thành phiên ôn tập!",
                 style = MaterialTheme.typography.headlineSmall,
@@ -345,7 +433,8 @@ private fun CompletionScreen(onRestart: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Bạn đã ôn tập xong tất cả thẻ trong phiên này.",
+                text = if (hasStudiedToday) "Bạn đã hoàn thành việc học hôm nay! Tuyệt vời!"
+                       else "Bạn đã ôn tập xong tất cả thẻ trong phiên này.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -358,6 +447,34 @@ private fun CompletionScreen(onRestart: () -> Unit) {
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NotificationTimePickerDialog(
+    initialHour: Int,
+    initialMinute: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int, Int) -> Unit
+) {
+    val timePickerState = rememberTimePickerState(
+        initialHour = initialHour,
+        initialMinute = initialMinute,
+        is24Hour = true
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Chọn giờ nhắc nhở hàng ngày") },
+        text = { TimePicker(state = timePickerState) },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(timePickerState.hour, timePickerState.minute) }) {
+                Text("Xác nhận")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Huỷ") }
+        }
+    )
 }
 
 @Composable

@@ -7,7 +7,10 @@ data class ReviewUiState(
     val currentIndex: Int = 0,
     val isFlipped: Boolean = false,
     val isComplete: Boolean = false,
-    val totalItems: Int = 0
+    val totalItems: Int = 0,
+    val hasStudiedToday: Boolean = false,
+    val notificationHour: Int = -1,
+    val notificationMinute: Int = 0
 ) {
     val currentItem: ReviewItem? get() = reviewItems.getOrNull(currentIndex)
     val progress: Float get() = (currentIndex + 1).toFloat() / totalItems.coerceAtLeast(1)

@@ -1,6 +1,7 @@
 package com.hieupnd.wordflash
 
 import android.app.Application
+import com.hieupnd.wordflash.notification.NotificationHelper
 import coil.Coil
 import coil.ImageLoader
 import coil.disk.DiskCache
@@ -14,6 +15,7 @@ import java.util.concurrent.TimeUnit
 class WordFlashApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        NotificationHelper.createChannel(this)
         val coilOkHttpClient = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

@@ -8,15 +8,17 @@ plugins {
     kotlin("kapt")
 }
 
-val geminiApiKey: String = rootProject.file("local.properties")
-    .takeIf { it.exists() }
-    ?.readLines()
-    ?.firstOrNull { it.contains("GEMINI_API_KEY") }
-    ?.split("=")
-    ?.lastOrNull()
-    ?.trim()
-    ?.removeSurrounding("\"")
-    ?: ""
+fun localProperty(key: String): String =
+    rootProject.file("local.properties")
+        .takeIf { it.exists() }
+        ?.readLines()
+        ?.firstOrNull { it.startsWith("$key=") }
+        ?.removePrefix("$key=")
+        ?.trim()
+        ?.removeSurrounding("\"")
+        ?: ""
+
+val geminiApiKey = localProperty("GEMINI_API_KEY")
 
 android {
     namespace = "com.hieupnd.wordflash"
@@ -92,6 +94,8 @@ dependencies {
     implementation(libs.play.services.auth)
     // Google Generative AI (Gemini)
     implementation(libs.generativeai)
+    // WorkManager
+    implementation(libs.work.runtime.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

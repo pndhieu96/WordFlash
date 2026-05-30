@@ -25,7 +25,20 @@
       "Bash(xargs ls -la)",
       "Bash(grep -E \"\\\\.kt$\")",
       "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models?key=AIzaSyDoITbFJI64H66Ne8xg2OWOHge26i04ts4\")",
-      "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite?key=AIzaSyDoITbFJI64H66Ne8xg2OWOHge26i04ts4\")"
+      "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite?key=AIzaSyDoITbFJI64H66Ne8xg2OWOHge26i04ts4\")",
+      "Read(//private/tmp/**)",
+      "Bash(jar xf *)",
+      "Bash(unzip -q /Users/hieudev/.gradle/caches/modules-2/files-2.1/com.google.ai.client.generativeai/generativeai/0.9.0/21f81d59e397efa7f819c1f435c1d29464d18a39/generativeai-0.9.0-sources.jar \"com/google/ai/client/generativeai/type/*Exception.kt\" \"com/google/ai/client/generativeai/type/*Exception.java\")",
+      "Read(//tmp/com/google/ai/client/generativeai/type/**)",
+      "Bash(rm -rf /tmp/generativeai_src)",
+      "Bash(mkdir -p /tmp/generativeai_src)",
+      "Read(//tmp/**)",
+      "Bash(unzip -q /Users/hieudev/.gradle/caches/modules-2/files-2.1/com.google.ai.client.generativeai/generativeai/0.9.0/21f81d59e397efa7f819c1f435c1d29464d18a39/generativeai-0.9.0-sources.jar)",
+      "Bash(grep -E \"\\\\\\\\.kt$\")",
+      "Bash(xargs cat -n)",
+      "WebFetch(domain:www.reddit.com)",
+      "Bash(rm /Users/hieudev/StudioProjects/WordFlash/app/src/main/java/com/hieupnd/wordflash/data/remote/api/GoogleImageSearchApi.kt)",
+      "Bash(rm /Users/hieudev/StudioProjects/WordFlash/app/src/main/java/com/hieupnd/wordflash/domain/usecase/vocabulary/GetWordImagesUseCase.kt)"
     ]
   }
 }

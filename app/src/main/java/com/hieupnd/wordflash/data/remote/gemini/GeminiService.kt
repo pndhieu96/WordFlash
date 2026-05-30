@@ -2,31 +2,136 @@ package com.hieupnd.wordflash.data.remote.gemini
 
 import android.util.Log
 import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.QuotaExceededException
 import com.google.gson.Gson
 import com.hieupnd.wordflash.domain.model.Example
+import com.hieupnd.wordflash.domain.model.GeminiSentenceInfo
 import com.hieupnd.wordflash.domain.model.GeminiWordInfo
-import java.net.URLEncoder
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 
 @Singleton
 class GeminiService @Inject constructor(
-    private val generativeModel: GenerativeModel,
+    @Named("gemini_models") private val models: List<GenerativeModel>,
     private val gson: Gson
 ) {
+    private val currentModelIndex = AtomicInteger(0)
+
     suspend fun getWordInfo(word: String): GeminiWordInfo {
         val prompt = buildPrompt(word)
-        Log.d(TAG, "Sending prompt for word: '$word'")
-        return try {
-            val response = generativeModel.generateContent(prompt)
-            val rawText = response.text
-            Log.d(TAG, "Raw Gemini response: $rawText")
-            if (rawText == null) throw IllegalStateException("Empty Gemini response for '$word'")
-            parseResponse(rawText, word)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error generating content for '$word': ${e.message}", e)
-            throw e
+        val modelCount = models.size
+        val startIndex = currentModelIndex.get()
+        var lastException: Exception? = null
+
+        for (modelAttempt in 0 until modelCount) {
+            val index = (startIndex + modelAttempt) % modelCount
+            val model = models[index]
+
+            for (retry in 0 until MAX_RETRIES_PER_MODEL) {
+                try {
+                    val response = model.generateContent(prompt)
+                    val rawText = response.text
+                        ?: throw IllegalStateException("Empty Gemini response for '$word'")
+                    Log.d(TAG, "Success with model[$index], retry=$retry")
+                    currentModelIndex.set(index)
+                    return parseResponse(rawText, word)
+                } catch (e: QuotaExceededException) {
+                    lastException = e
+                    if (retry < MAX_RETRIES_PER_MODEL - 1) {
+                        val delayMs = RETRY_DELAYS[retry]
+                        Log.w(TAG, "Model[$index] rate limited, retry ${retry + 1} in ${delayMs}ms")
+                        delay(delayMs)
+                    } else {
+                        Log.w(TAG, "Model[$index] exhausted after $MAX_RETRIES_PER_MODEL retries, rotating to next model")
+                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    lastException = e
+                    Log.e(TAG, "Non-rate-limit error on model[$index], retry=$retry", e)
+                    
+                    // If model is not found (404), no point in retrying this model
+                    if (e.message?.contains("404") == true) {
+                        Log.e(TAG, "Model[$index] returned 404, rotating immediately")
+                        break
+                    }
+
+                    if (retry < MAX_RETRIES_PER_MODEL - 1) {
+                        val delayMs = RETRY_DELAYS[retry]
+                        delay(delayMs)
+                    } else {
+                        Log.e(TAG, "Model[$index] failed after $MAX_RETRIES_PER_MODEL retries, rotating to next model")
+                        break
+                    }
+                }
+            }
         }
+
+        throw lastException ?: QuotaExceededException("All $modelCount Gemini model(s) are rate limited for '$word'")
+    }
+
+    suspend fun getSentenceStructureInfo(sentence: String): GeminiSentenceInfo {
+        val prompt = buildSentencePrompt(sentence)
+        val modelCount = models.size
+        val startIndex = currentModelIndex.get()
+        var lastException: Exception? = null
+
+        for (modelAttempt in 0 until modelCount) {
+            val index = (startIndex + modelAttempt) % modelCount
+            val model = models[index]
+            for (retry in 0 until MAX_RETRIES_PER_MODEL) {
+                try {
+                    val response = model.generateContent(prompt)
+                    val rawText = response.text
+                        ?: throw IllegalStateException("Empty Gemini response for sentence '$sentence'")
+                    currentModelIndex.set(index)
+                    return parseSentenceResponse(rawText)
+                } catch (e: QuotaExceededException) {
+                    lastException = e
+                    if (retry < MAX_RETRIES_PER_MODEL - 1) delay(RETRY_DELAYS[retry])
+                    else Log.w(TAG, "Model[$index] exhausted for sentence structure")
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    lastException = e
+                    Log.e(TAG, "Error on model[$index] for sentence structure", e)
+                    break
+                }
+            }
+        }
+        throw lastException ?: QuotaExceededException("All models rate limited for sentence '$sentence'")
+    }
+
+    private fun buildSentencePrompt(sentence: String): String = """
+        You are a Vietnamese English grammar assistant.
+        For the English sentence structure "$sentence", return ONLY a raw JSON object with NO markdown, NO code fences, NO explanation:
+        {
+          "meaning": "Mô tả ngắn gọn cách dùng cấu trúc này bằng tiếng Việt (2-3 câu)",
+          "examples": [
+            {"enSentence": "Câu ví dụ tiếng Anh sử dụng cấu trúc này", "viSentence": "Bản dịch tiếng Việt tự nhiên"},
+            {"enSentence": "Câu ví dụ thứ 2", "viSentence": "Bản dịch"},
+            {"enSentence": "Câu ví dụ thứ 3", "viSentence": "Bản dịch"}
+          ]
+        }
+        Rules:
+        - description: 2-3 sentences in Vietnamese explaining when and how to use this structure
+        - examples: exactly 3 natural English sentences following the structure, each with Vietnamese translation
+        - Return ONLY the JSON object, no other text
+    """.trimIndent()
+
+    private fun parseSentenceResponse(raw: String): GeminiSentenceInfo {
+        val cleaned = raw.trim()
+            .removePrefix("```json").removePrefix("```")
+            .removeSuffix("```").trim()
+        val dto = gson.fromJson(cleaned, GeminiWordInfoDto::class.java)
+        return GeminiSentenceInfo(
+            description = dto.meaning.orEmpty(),
+            examples = dto.examples?.map {
+                Example(enSentence = it.enSentence.orEmpty(), viSentence = it.viSentence.orEmpty())
+            } ?: emptyList()
+        )
     }
 
     private fun buildPrompt(word: String): String = """
@@ -38,13 +143,11 @@ class GeminiService @Inject constructor(
             {"enSentence": "Natural English sentence using '$word'", "viSentence": "Bản dịch tiếng Việt tự nhiên"},
             {"enSentence": "Second natural sentence", "viSentence": "Bản dịch tiếng Việt"},
             {"enSentence": "Third natural sentence", "viSentence": "Bản dịch tiếng Việt"}
-          ],
-          "imageKeywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"]
+          ]
         }
         Rules:
         - meaning: concise Vietnamese phrase with part of speech in parentheses
         - examples: exactly 3 items, each with enSentence and viSentence
-        - imageKeywords: exactly 5 SHORT English words (1-2 words max, NO phrases) representing DIFFERENT visual aspects of "$word", suitable for Flickr image search. Each keyword must be distinct and concrete. Example for "book": ["reading", "library", "textbook", "literature", "bookshelf"]. Example for "computer": ["laptop", "keyboard", "monitor", "coding", "technology"]
         - Return ONLY the JSON object, no other text
     """.trimIndent()
 
@@ -55,20 +158,12 @@ class GeminiService @Inject constructor(
         Log.d(TAG, "Cleaned JSON: $cleaned")
         return try {
             val dto = gson.fromJson(cleaned, GeminiWordInfoDto::class.java)
-            Log.d(TAG, "Parsed meaning: ${dto.meaning}, examples: ${dto.examples?.size}, keywords: ${dto.imageKeywords?.size}")
-            val imageUrls = dto.imageKeywords
-                ?.filterNotNull()
-                ?.filter { it.isNotBlank() }
-                ?.map { keyword ->
-                    val encoded = URLEncoder.encode(keyword.trim(), "UTF-8")
-                    "https://loremflickr.com/400/300/$encoded"
-                } ?: emptyList()
+            Log.d(TAG, "Parsed meaning: ${dto.meaning}, examples: ${dto.examples?.size}")
             GeminiWordInfo(
                 meaning = dto.meaning.orEmpty(),
                 examples = dto.examples?.map {
                     Example(enSentence = it.enSentence.orEmpty(), viSentence = it.viSentence.orEmpty())
-                } ?: emptyList(),
-                imageUrls = imageUrls
+                } ?: emptyList()
             )
         } catch (e: Exception) {
             Log.e(TAG, "JSON parse error: ${e.message}")
@@ -78,13 +173,14 @@ class GeminiService @Inject constructor(
 
     companion object {
         private const val TAG = "GeminiService"
+        private const val MAX_RETRIES_PER_MODEL = 3
+        private val RETRY_DELAYS = listOf(1000L, 2000L, 4000L)
     }
 }
 
 private data class GeminiWordInfoDto(
     val meaning: String?,
-    val examples: List<ExampleDto>?,
-    val imageKeywords: List<String?>?
+    val examples: List<ExampleDto>?
 )
 
 private data class ExampleDto(

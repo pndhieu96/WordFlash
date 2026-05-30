@@ -13,7 +13,7 @@
 | **UI Framework** | Jetpack Compose + Material 3 |
 | **Local Database** | Room Database |
 | **Remote Database** | Firebase Firestore (Auth + Firestore — tích hợp Phase 3) |
-| **External APIs** | Dictionary API (IPA/audio), Datamuse API (gợi ý từ), Gemini API (nghĩa VI + câu ví dụ + từ khoá ảnh) |
+| **External APIs** | Dictionary API (IPA/audio), Datamuse API (gợi ý từ), Gemini API (nghĩa VI + câu ví dụ; cấu trúc câu mô tả + ví dụ) |
 
 ## 3. Các Tính Năng Chính (Core Features)
 
@@ -34,15 +34,14 @@ Tính năng này cho phép người dùng tìm kiếm từ vựng và chủ đ�
   - Tự động lấy 3 câu ví dụ song ngữ EN+VI từ Gemini API khi tìm từ (hiển thị trạng thái đang tải trong lúc chờ)
   - Người dùng có thể **tự thêm câu ví dụ thủ công** (EN + VI tùy chọn) ngay trong Search tab trước khi lưu
 - **Hình ảnh minh họa**:
-  - 5 ảnh từ loremflickr.com (dùng 5 từ khoá khác nhau do Gemini trả về) + 1 ô xám "Không có ảnh", người dùng chọn 1 để lưu (hiển thị border + checkmark)
-  - **Ô nhập URL ảnh tùy chỉnh** — người dùng paste URL bất kỳ; preview hiển thị ngay bên dưới; ưu tiên dùng URL tùy chỉnh nếu được nhập
+  - **Ô nhập URL ảnh** — người dùng tự tìm và paste URL ảnh bất kỳ; preview hiển thị ngay bên dưới
 
 **Hành động:**
 - Nút "Thêm Flashcard" để lưu toàn bộ thông tin vào Room Database
 - Nút "Sửa" để cập nhật:
   - Nghĩa tiếng Việt
   - IPA
-  - Ảnh: hiển thị ảnh hiện tại + nút "Tìm ảnh" (gọi Gemini lấy 5 ảnh mới từ loremflickr + ô xám; hiển thị lỗi nếu Gemini thất bại) + **ô nhập URL ảnh tùy chỉnh** với nút "Áp dụng"
+  - Ảnh: **ô nhập URL ảnh** hiển thị URL hiện tại; người dùng tự thay URL mới; preview hiển thị bên dưới
   - **Câu ví dụ (Examples)**: Danh sách ví dụ song ngữ EN/VI với nút X để xoá từng ví dụ; input field "Câu tiếng Anh" + "Nghĩa tiếng Việt (tuỳ chọn)" + nút "Thêm ví dụ" để thêm mới
 - Nút "Xoá" để xóa flashcard khỏi bộ sưu tập
 - **Error handling**: Các thao tác thất bại hiển thị AlertDialog thông báo lỗi; không set trạng thái thành công khi thực ra thất bại
@@ -55,16 +54,15 @@ Tính năng này cho phép người dùng tìm kiếm từ vựng và chủ đ�
 - Phân tách bằng HorizontalDivider nếu có ví dụ
 
 **Lưu ý kỹ thuật:**
-- `VocabularyViewModel.searchWord()` kích hoạt 2 coroutine song song: `SearchWordUseCase` → DictionaryApi (IPA, audio, từ loại) và `GetWordInfoFromGeminiUseCase` → GeminiService (nghĩa VI, 3 câu ví dụ EN+VI, 5 từ khoá ảnh)
-- GeminiService gọi model `gemini-2.5-flash-lite` với `responseMimeType = "application/json"`; mỗi từ khoá → URL `https://loremflickr.com/400/300/{keyword}`
+- `VocabularyViewModel.searchWord()` kích hoạt 2 coroutine song song: `SearchWordUseCase` → DictionaryApi (IPA, audio, từ loại) và `GetWordInfoFromGeminiUseCase` → GeminiService (nghĩa VI, 3 câu ví dụ EN+VI)
+- GeminiService inject `List<GenerativeModel>` (`@Named("gemini_models")`), rotate qua 4 model theo thứ tự: `gemini-2.5-flash-lite` → `gemini-2.5-flash` → `gemini-3.5-flash` → `gemini-3.1-flash-lite`; tất cả dùng `responseMimeType = "application/json"`
+- Cơ chế retry + model rotation: mỗi model thử tối đa 3 lần với exponential backoff (1s → 2s → 4s) khi bị `QuotaExceededException`; hết retry thì rotate sang model tiếp; `currentModelIndex` (AtomicInteger) nhớ model đang hoạt động qua các lần gọi
 - GEMINI_API_KEY lưu trong `local.properties` (gitignored), expose qua `BuildConfig.GEMINI_API_KEY`
 - Khi không tìm thấy từ, Datamuse API trả về danh sách gợi ý từ (`/sug?s=<query>`)
 - `SubcomposeAsyncImage` từ Coil library — `WordFlashAsyncImage` wrapper với retry tự động (tối đa 3 lần, 500ms delay); nền errorContainer khi lỗi
-- `ImageSelectionGrid` composable: lưới 3 cột, hàng đầu = ô xám "Không có ảnh" (sentinel `""`) + 5 ảnh loremflickr; dùng `chunked(3)` để render từng hàng
 - Ảnh hiển thị với `aspectRatio(4f/3f)` và `ContentScale.Fit` xuyên suốt app
-- Ảnh được chọn có border dày (3dp) + checkmark icon
 - Ảnh trong CollectionTab: `fillMaxWidth(0.67f)` + `aspectRatio(4f/3f)` + `ContentScale.Fit`
-- Edit dialog hiển thị lỗi dạng text màu error khi Gemini không tải được ảnh (`editImagesError`)
+- `imageUrl` lưu URL do người dùng nhập thủ công (`customImageUrl` trong UiState); không có tự động lấy ảnh
 - Chữ đầu của từ tiếng Anh tự động viết hoa (`replaceFirstChar { it.uppercaseChar() }`)
 - Edit dialog có `verticalScroll` để cuộn khi nội dung dài (ví dụ nhiều)
 - `Example` model: `enSentence: String`, `viSentence: String` — serialized JSON trong Room
@@ -127,10 +125,11 @@ description: String  — mô tả (từ data hoặc người dùng nhập)
 **Lưu trữ & Thêm thông tin:**
 - **Mô tả (Description)**: Giải thích về ngữ pháp, cấu trúc hoặc lưu ý
 - **Ví dụ liên quan**: Danh sách các câu ví dụ thực tế
+- **Nút "Tự động điền từ Gemini"**: Hiển thị khi đã có ít nhất 1 thành phần trong cấu trúc; gọi `GeminiService.getSentenceStructureInfo()` để tự động điền mô tả cách dùng + 3 câu ví dụ song ngữ EN+VI; hiển thị CircularProgressIndicator khi đang tải
 - Nút "Lưu cấu trúc" để lưu vào Room Database
 
 **Quản lý bộ sưu tập:**
-- Tab "Bộ sưu tập": Hiển thị danh sách câu đã lưu
+- Tab "Bộ sưu tập" là tab đầu tiên (index 0): Hiển thị danh sách câu đã lưu
 - Nút "Sửa" để cập nhật:
   - Mô tả (Description)
   - Ví dụ liên quan (RelatedExamples) — thêm/xoá từng ví dụ
@@ -140,12 +139,15 @@ description: String  — mô tả (từ data hoặc người dùng nhập)
 - **Error handling**: Thao tác thất bại hiển thị thông báo lỗi trong `error` state
 
 **Lưu ý kỹ thuật:**
-- Sử dụng `TabRow` lồng nhau: outer tab (Tạo cấu trúc / Bộ sưu tập), inner tab (3 loại component)
+- Tab ngoài: **Bộ sưu tập** (index 0) và **Tạo cấu trúc câu** (index 1); tab trong: 3 loại component (Word Types / Sentence Roles / Custom)
 - `StructureItem` thay thế `List<String>` cũ — linh hoạt hơn, không phụ thuộc lookup từ static data
 - `focusedWordType` và `focusedSentenceRole` là 2 state riêng biệt; chuyển tab sẽ clear cả 2
 - `selectedComponentTab` reset focused state khi chuyển tab
 - FlowRow với `@OptIn(ExperimentalLayoutApi::class)` trên từng composable riêng
 - `CustomTabContent` có `LocalFocusManager` để clear focus khi submit
+- `GeminiSentenceInfo` domain model: `description: String`, `examples: List<Example>`
+- `GetSentenceInfoFromGeminiUseCase` → `SentenceRepository.getSentenceInfoFromGemini()` → `GeminiService.getSentenceStructureInfo()` — reuses `GeminiWordInfoDto` (field "meaning" → description, field "examples" → examples list)
+- `SentenceViewModel.generateFromGemini()` sets `isLoadingGemini = true`, calls use case, updates `description` + `relatedExamples` trên success
 
 ### 3.3 Màn hình 3: Học & Ghi Nhớ (Spaced Repetition / Học thông minh)
 
@@ -186,7 +188,7 @@ audioUrl: String (hoặc cờ để dùng TTS)
 meaning: String
 wordType: String (loại từ: noun, verb, adjective, ...)
 examples: String (JSON serialized List<Example> — mỗi Example: enSentence, viSentence)
-imageUrl: String (URL ảnh từ Pixabay hoặc URL tùy chỉnh do người dùng nhập)
+imageUrl: String (URL ảnh do người dùng tự nhập)
 memorizationLevel: Int (0: Không nhớ, 1: Hơi nhớ, 2: Đã nhớ)
 updatedAt: Long (Timestamp để đồng bộ sau này)
 lastReviewedAt: Long (Thời gian ôn tập gần nhất)
@@ -217,8 +219,7 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 
 ### APIs được sử dụng
 - **Dictionary API**: https://api.dictionaryapi.dev/ (Từ điển tiếng Anh — IPA, audio URL, từ loại)
-- **Gemini API** (`gemini-2.5-flash-lite`): Google AI SDK (nghĩa tiếng Việt, 3 câu ví dụ EN+VI, 5 từ khoá ảnh — API key lưu trong `local.properties`, không commit)
-- **loremflickr.com**: Ảnh minh hoạ dựa trên từ khoá (`https://loremflickr.com/400/300/{keyword}`) — không cần API key
+- **Gemini API**: Google AI SDK — model rotation `gemini-2.5-flash-lite` → `gemini-2.5-flash` → `gemini-3.5-flash` → `gemini-3.1-flash-lite` (auto retry + rotate khi rate limited); (1) tra từ vựng: trả về nghĩa VI + 3 câu ví dụ EN+VI; (2) cấu trúc câu: trả về mô tả cách dùng + 3 câu ví dụ EN+VI. API key lưu trong `local.properties` (`GEMINI_API_KEY`), không commit
 - **Datamuse API**: https://api.datamuse.com/sug (Gợi ý từ khi không tìm thấy trong từ điển)
 
 ### Libraries chính
@@ -241,8 +242,7 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 ### Hoàn thành ✅
 - [x] Màn hình Vocabulary với tìm kiếm từ điển
 - [x] Lưu/Sửa/Xoá flashcard từ vựng
-- [x] Tích hợp ảnh minh hoạ - hiển thị 5 ảnh + 1 ô xám "không có ảnh" + chọn
-- [x] Edit dialog - đổi ảnh, nghĩa, IPA
+- [x] Edit dialog - đổi ảnh (URL thủ công), nghĩa, IPA
 - [x] **Edit dialog - CRUD câu ví dụ song ngữ (EN + VI)** _(Phase 2)_
 - [x] **Hiển thị câu ví dụ trong card bộ sưu tập** _(Phase 2)_
 - [x] Màn hình Sentence Builder với word type chips
@@ -258,24 +258,39 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 - [x] Collection tabs hiển thị ảnh và ví dụ
 - [x] **Border-only color indicator cho Vocabulary và Sentence cards** _(Phase 3)_
 - [x] **Viết hoa chữ đầu từ tiếng Anh** _(Phase 3)_
-- [x] **ImageSelectionGrid 5 ảnh + 1 ô xám** _(Phase 3)_
 - [x] **Firebase Authentication — Google Sign-In** _(Phase 3)_
 - [x] **Firebase Firestore sync — Vocabulary & Sentence cards** _(Phase 3)_
 - [x] **App logo — Vector adaptive icon** _(Phase 3)_
 - [x] **SubcomposeAsyncImage — loading indicator + error state cho toàn bộ ảnh** _(Phase 4)_
-- [x] **Nhập URL ảnh tùy chỉnh trong Search tab và Edit dialog** _(Phase 4)_
+- [x] **Nhập URL ảnh thủ công trong Search tab và Edit dialog (không có tự động tìm ảnh)** _(Phase 4)_
 - [x] **Thêm câu ví dụ thủ công trong Search tab (khi thêm từ mới)** _(Phase 4)_
 - [x] **Chip mức độ ghi nhớ clickable — xoay vòng 0→1→2→0** _(Phase 4)_
 - [x] **Error handling: save/edit/delete hiển thị dialog lỗi khi thất bại** _(Phase 4)_
 - [x] **Fix progress bar Review: `(currentIndex+1)/totalItems`** _(Phase 4)_
 - [x] **Fix crash risk: `levelLabels.getOrElse(...)` thay vì direct array access** _(Phase 4)_
-- [x] **Tích hợp Gemini API — nghĩa VI + 3 câu ví dụ EN/VI + 5 từ khoá ảnh (loremflickr)** _(Phase 5)_
+- [x] **Tích hợp Gemini API — nghĩa VI + 3 câu ví dụ EN/VI cho tra từ vựng** _(Phase 5)_
 - [x] **Datamuse API — gợi ý từ khi không tìm thấy** _(Phase 5)_
 - [x] **Ảnh hiển thị `aspectRatio(4f/3f)` + `ContentScale.Fit` xuyên suốt; CollectionTab ảnh 2/3 width** _(Phase 5)_
-- [x] **Edit dialog hiển thị lỗi khi Gemini không tải được ảnh** _(Phase 5)_
-- [x] **Tab "Bộ sưu tập" hiển thị trước "Tìm kiếm"** _(Phase 5)_
+- [x] **Tab "Bộ sưu tập" hiển thị trước "Tìm kiếm" trong màn hình Vocabulary** _(Phase 5)_
+- [x] **Gemini retry + model rotation: exponential backoff → rotate qua 4 model khi rate limited** _(Phase 5)_
 
 ### Cần phát triển 📋
 - [ ] Offline support enhancement
 - [ ] Performance optimization
 - [ ] Lưu `structureItems` chi tiết vào DB để cho phép edit lại cấu trúc câu
+
+### Hoàn thành Phase 6 ✅
+- [x] **Nhập/chỉnh sửa IPA khi thêm từ mới trong Search tab** _(Phase 6)_
+- [x] **Ôn tập: hiển thị câu ví dụ song ngữ EN+VI trên mặt sau flashcard** _(Phase 6)_
+- [x] **Ôn tập: hiển thị trạng thái đã học hôm nay (icon + badge)** _(Phase 6)_
+- [x] **Ôn tập: giới hạn phiên 20 từ vựng + 5 cấu trúc câu mỗi ngày** _(Phase 6)_
+- [x] **Thông báo nhắc nhở hàng ngày: cài giờ, kiểm tra đã học chưa, WorkManager** _(Phase 6)_
+- [x] **Cấu trúc câu: thêm dịch tiếng Việt cho câu ví dụ (List<Example> thay List<String>)** _(Phase 6)_
+- [x] **Cấu trúc câu: cho phép chỉnh sửa text cấu trúc trong edit dialog** _(Phase 6)_
+
+### Hoàn thành Phase 7 ✅
+- [x] **Xoá toàn bộ tích hợp Google Custom Search; ảnh do người dùng tự nhập URL** _(Phase 7)_
+- [x] **Xoá imageKeywords khỏi GeminiWordInfo và Gemini prompt từ vựng** _(Phase 7)_
+- [x] **Tab "Bộ sưu tập" hiển thị trước "Tạo cấu trúc câu" trong màn hình Sentence** _(Phase 7)_
+- [x] **Gemini tự động điền mô tả + 3 câu ví dụ EN+VI cho cấu trúc câu** _(Phase 7)_
+- [x] **`GeminiSentenceInfo` domain model + `GetSentenceInfoFromGeminiUseCase`** _(Phase 7)_

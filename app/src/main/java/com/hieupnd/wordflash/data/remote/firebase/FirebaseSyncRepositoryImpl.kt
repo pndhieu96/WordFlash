@@ -85,7 +85,7 @@ class FirebaseSyncRepositoryImpl @Inject constructor(
         "id" to id,
         "sentence" to sentence,
         "description" to description,
-        "relatedExamples" to relatedExamples,
+        "relatedExamples" to relatedExamples.map { mapOf("enSentence" to it.enSentence, "viSentence" to it.viSentence) },
         "memorizationLevel" to memorizationLevel,
         "updatedAt" to updatedAt,
         "lastReviewedAt" to lastReviewedAt
@@ -123,7 +123,16 @@ class FirebaseSyncRepositoryImpl @Inject constructor(
             id = id,
             sentence = getString("sentence") ?: return null,
             description = getString("description") ?: "",
-            relatedExamples = (get("relatedExamples") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+            relatedExamples = (get("relatedExamples") as? List<*>)?.mapNotNull { item ->
+                when (item) {
+                    is Map<*, *> -> Example(
+                        enSentence = item["enSentence"] as? String ?: "",
+                        viSentence = item["viSentence"] as? String ?: ""
+                    )
+                    is String -> Example(enSentence = item, viSentence = "")
+                    else -> null
+                }
+            } ?: emptyList(),
             memorizationLevel = getLong("memorizationLevel")?.toInt() ?: 0,
             updatedAt = getLong("updatedAt") ?: 0L,
             isSynced = true,

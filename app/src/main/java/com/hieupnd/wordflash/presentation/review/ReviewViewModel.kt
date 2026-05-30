@@ -1,23 +1,34 @@
 package com.hieupnd.wordflash.presentation.review
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.hieupnd.wordflash.domain.model.ReviewItem
 import com.hieupnd.wordflash.domain.repository.SentenceRepository
 import com.hieupnd.wordflash.domain.repository.VocabularyRepository
 import com.hieupnd.wordflash.domain.usecase.review.GetReviewCardsUseCase
 import com.hieupnd.wordflash.domain.usecase.sentence.UpdateSentenceMemorizationUseCase
 import com.hieupnd.wordflash.domain.usecase.vocabulary.UpdateVocabularyMemorizationUseCase
+import com.hieupnd.wordflash.notification.DailyReminderWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
-private const val SESSION_SIZE = 20
+private const val VOCAB_SESSION_SIZE = 20
+private const val SENTENCE_SESSION_SIZE = 5
+private const val WORK_TAG = "daily_reminder"
 
 @HiltViewModel
 class ReviewViewModel @Inject constructor(
@@ -25,27 +36,46 @@ class ReviewViewModel @Inject constructor(
     private val updateVocabMemorizationUseCase: UpdateVocabularyMemorizationUseCase,
     private val updateSentenceMemorizationUseCase: UpdateSentenceMemorizationUseCase,
     private val vocabRepository: VocabularyRepository,
-    private val sentenceRepository: SentenceRepository
+    private val sentenceRepository: SentenceRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    private val prefs = context.getSharedPreferences(DailyReminderWorker.PREFS_NAME, Context.MODE_PRIVATE)
 
     private val _uiState = MutableStateFlow(ReviewUiState())
     val uiState: StateFlow<ReviewUiState> = _uiState.asStateFlow()
 
     init {
+        loadNotificationPrefs()
         loadSession()
+    }
+
+    private fun loadNotificationPrefs() {
+        val hour = prefs.getInt(KEY_NOTIFICATION_HOUR, -1)
+        val minute = prefs.getInt(KEY_NOTIFICATION_MINUTE, 0)
+        _uiState.update { it.copy(notificationHour = hour, notificationMinute = minute) }
     }
 
     private fun loadSession() {
         viewModelScope.launch {
             applyDecay()
-            val items = getReviewCardsUseCase().first().take(SESSION_SIZE)
+            val today = LocalDate.now().toString()
+            val lastStudy = prefs.getString(DailyReminderWorker.KEY_LAST_STUDY_DATE, "")
+            val studiedToday = lastStudy == today
+
+            val allItems = getReviewCardsUseCase().first()
+            val vocabItems = allItems.filterIsInstance<ReviewItem.VocabItem>().take(VOCAB_SESSION_SIZE)
+            val sentenceItems = allItems.filterIsInstance<ReviewItem.SentenceItem>().take(SENTENCE_SESSION_SIZE)
+            val items = (vocabItems + sentenceItems).shuffled()
+
             _uiState.update {
                 it.copy(
                     reviewItems = items,
                     totalItems = items.size,
                     currentIndex = 0,
                     isFlipped = false,
-                    isComplete = items.isEmpty()
+                    isComplete = items.isEmpty(),
+                    hasStudiedToday = studiedToday
                 )
             }
         }
@@ -84,6 +114,7 @@ class ReviewViewModel @Inject constructor(
             }
             val nextIndex = state.currentIndex + 1
             if (nextIndex >= state.reviewItems.size) {
+                markStudiedToday()
                 _uiState.update { it.copy(isComplete = true) }
             } else {
                 _uiState.update { it.copy(currentIndex = nextIndex, isFlipped = false) }
@@ -91,7 +122,53 @@ class ReviewViewModel @Inject constructor(
         }
     }
 
+    private fun markStudiedToday() {
+        val today = LocalDate.now().toString()
+        prefs.edit().putString(DailyReminderWorker.KEY_LAST_STUDY_DATE, today).apply()
+        _uiState.update { it.copy(hasStudiedToday = true) }
+    }
+
     fun restartSession() {
         loadSession()
+    }
+
+    fun setNotificationTime(hour: Int, minute: Int) {
+        val now = Calendar.getInstance()
+        val target = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            if (!after(now)) add(Calendar.DAY_OF_YEAR, 1)
+        }
+        val initialDelay = target.timeInMillis - now.timeInMillis
+
+        val request = PeriodicWorkRequestBuilder<DailyReminderWorker>(24, TimeUnit.HOURS)
+            .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            WORK_TAG,
+            ExistingPeriodicWorkPolicy.REPLACE,
+            request
+        )
+
+        prefs.edit()
+            .putInt(KEY_NOTIFICATION_HOUR, hour)
+            .putInt(KEY_NOTIFICATION_MINUTE, minute)
+            .apply()
+
+        _uiState.update { it.copy(notificationHour = hour, notificationMinute = minute) }
+    }
+
+    fun cancelNotification() {
+        WorkManager.getInstance(context).cancelUniqueWork(WORK_TAG)
+        prefs.edit().putInt(KEY_NOTIFICATION_HOUR, -1).apply()
+        _uiState.update { it.copy(notificationHour = -1) }
+    }
+
+    companion object {
+        private const val KEY_NOTIFICATION_HOUR = "notification_hour"
+        private const val KEY_NOTIFICATION_MINUTE = "notification_minute"
     }
 }

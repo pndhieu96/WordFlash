@@ -2,6 +2,8 @@ package com.hieupnd.wordflash.presentation.sentence
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
@@ -60,6 +62,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hieupnd.wordflash.domain.model.Example
 import com.hieupnd.wordflash.domain.model.SentenceCard
 import kotlinx.coroutines.delay
 
@@ -85,41 +88,48 @@ fun SentenceScreen(
             Tab(
                 selected = uiState.selectedTab == 0,
                 onClick = { viewModel.onTabSelected(0) },
-                text = { Text("Tạo cấu trúc") }
+                text = { Text("Bộ sưu tập (${uiState.savedCards.size})") }
             )
             Tab(
                 selected = uiState.selectedTab == 1,
                 onClick = { viewModel.onTabSelected(1) },
-                text = { Text("Bộ sưu tập (${uiState.savedCards.size})") }
+                text = { Text("Tạo cấu trúc") }
             )
         }
 
         when (uiState.selectedTab) {
-            0 -> CreateSentenceTab(uiState = uiState, viewModel = viewModel)
-            1 -> SentenceCollectionTab(
+            0 -> SentenceCollectionTab(
                 cards = uiState.savedCards,
                 onUpdateLevel = viewModel::updateMemorizationLevel,
                 onEdit = viewModel::startEdit,
                 onDelete = viewModel::requestDelete
             )
+            1 -> CreateSentenceTab(uiState = uiState, viewModel = viewModel)
         }
     }
 
     // Edit dialog
     uiState.editingCard?.let { card ->
+        var editSentence by remember(card.id) { mutableStateOf(card.sentence) }
         var editDescription by remember(card.id) { mutableStateOf(card.description) }
         var editExamples by remember(card.id) { mutableStateOf(card.relatedExamples) }
         var newExampleInput by remember(card.id) { mutableStateOf("") }
+        var newExampleViInput by remember(card.id) { mutableStateOf("") }
+        val scrollState = rememberScrollState()
         AlertDialog(
             onDismissRequest = viewModel::cancelEdit,
             title = { Text("Sửa cấu trúc") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = card.sentence,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)
+                ) {
+                    OutlinedTextField(
+                        value = editSentence,
+                        onValueChange = { editSentence = it },
+                        label = { Text("Cấu trúc câu") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
                     OutlinedTextField(
                         value = editDescription,
@@ -137,14 +147,23 @@ fun SentenceScreen(
                     if (editExamples.isNotEmpty()) {
                         editExamples.forEachIndexed { index, example ->
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
+                                verticalAlignment = Alignment.Top,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(
-                                    "• $example",
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "• ${example.enSentence}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontStyle = FontStyle.Italic
+                                    )
+                                    if (example.viSentence.isNotEmpty()) {
+                                        Text(
+                                            "  ${example.viSentence}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                                 IconButton(
                                     onClick = { editExamples = editExamples.toMutableList().also { it.removeAt(index) } },
                                     modifier = Modifier.size(32.dp)
@@ -154,29 +173,39 @@ fun SentenceScreen(
                             }
                         }
                     }
+                    OutlinedTextField(
+                        value = newExampleInput,
+                        onValueChange = { newExampleInput = it },
+                        label = { Text("Câu tiếng Anh") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                    )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedTextField(
-                            value = newExampleInput,
-                            onValueChange = { newExampleInput = it },
-                            label = { Text("Thêm ví dụ") },
+                            value = newExampleViInput,
+                            onValueChange = { newExampleViInput = it },
+                            label = { Text("Nghĩa tiếng Việt (tuỳ chọn)") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = {
                                 if (newExampleInput.isNotBlank()) {
-                                    editExamples = editExamples + newExampleInput.trim()
+                                    editExamples = editExamples + Example(newExampleInput.trim(), newExampleViInput.trim())
                                     newExampleInput = ""
+                                    newExampleViInput = ""
                                 }
                             })
                         )
                         IconButton(onClick = {
                             if (newExampleInput.isNotBlank()) {
-                                editExamples = editExamples + newExampleInput.trim()
+                                editExamples = editExamples + Example(newExampleInput.trim(), newExampleViInput.trim())
                                 newExampleInput = ""
+                                newExampleViInput = ""
                             }
                         }) {
                             Icon(Icons.Default.Add, contentDescription = "Thêm ví dụ")
@@ -187,6 +216,7 @@ fun SentenceScreen(
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.saveEdit(card.copy(
+                        sentence = editSentence.trim().ifEmpty { card.sentence },
                         description = editDescription,
                         relatedExamples = editExamples
                     ))
@@ -331,6 +361,23 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
         item { HorizontalDivider() }
 
         item {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Mô tả & ví dụ", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                if (uiState.structureItems.isNotEmpty()) {
+                    if (uiState.isLoadingGemini) {
+                        androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                    } else {
+                        TextButton(onClick = viewModel::generateFromGemini) {
+                            Text("Tự động điền từ Gemini")
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
             OutlinedTextField(
                 value = uiState.description,
                 onValueChange = viewModel::onDescriptionChange,
@@ -343,11 +390,20 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
         item {
             Text("Ví dụ liên quan", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Spacer(modifier = Modifier.height(4.dp))
+            OutlinedTextField(
+                value = uiState.newExample,
+                onValueChange = viewModel::onNewExampleChange,
+                label = { Text("Câu tiếng Anh") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
-                    value = uiState.newExample,
-                    onValueChange = viewModel::onNewExampleChange,
-                    label = { Text("Thêm câu ví dụ") },
+                    value = uiState.newExampleVi,
+                    onValueChange = viewModel::onNewExampleViChange,
+                    label = { Text("Nghĩa tiếng Việt (tuỳ chọn)") },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -364,8 +420,13 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
         }
 
         itemsIndexed(uiState.relatedExamples) { index, example ->
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text("• $example", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("• ${example.enSentence}", style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic)
+                    if (example.viSentence.isNotEmpty()) {
+                        Text("  ${example.viSentence}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 IconButton(onClick = { viewModel.removeExampleAt(index) }, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Default.Close, contentDescription = "Xóa", modifier = Modifier.size(16.dp))
                 }
@@ -450,7 +511,10 @@ private fun SentenceCollectionTab(
                     if (card.relatedExamples.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         card.relatedExamples.forEach { ex ->
-                            Text("• $ex", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("• ${ex.enSentence}", style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (ex.viSentence.isNotEmpty()) {
+                                Text("  ${ex.viSentence}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
