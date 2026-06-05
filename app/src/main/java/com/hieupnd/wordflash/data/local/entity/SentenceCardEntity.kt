@@ -12,5 +12,6 @@ data class SentenceCardEntity(
     val memorizationLevel: Int,
     val updatedAt: Long,
     val isSynced: Boolean,
-    val lastReviewedAt: Long = 0
+    val lastReviewedAt: Long = 0,
+    val createdAt: Long = 0
 )

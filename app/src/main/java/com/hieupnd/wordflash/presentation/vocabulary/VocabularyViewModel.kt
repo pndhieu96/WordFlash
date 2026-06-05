@@ -65,6 +65,7 @@ class VocabularyViewModel @Inject constructor(
                     isLoading = true,
                     isLoadingGeminiInfo = false,
                     error = null,
+                    geminiError = null,
                     suggestions = emptyList(),
                     dictionaryEntry = null,
                     isSaved = false,
@@ -72,7 +73,9 @@ class VocabularyViewModel @Inject constructor(
                     dictionaryExamples = emptyList(),
                     customImageUrl = "",
                     viMeaning = "",
-                    ipaInput = ""
+                    ipaInput = "",
+                    isManualEntry = false,
+                    manualWord = ""
                 )
             }
 
@@ -108,7 +111,12 @@ class VocabularyViewModel @Inject constructor(
                             }
                             .onFailure { error ->
                                 Log.e("VocabularyViewModel", "Gemini error", error)
-                                _uiState.update { it.copy(isLoadingGeminiInfo = false) }
+                                _uiState.update {
+                                    it.copy(
+                                        isLoadingGeminiInfo = false,
+                                        geminiError = "Không thể tải thông tin từ Gemini: ${error.message}"
+                                    )
+                                }
                             }
                     }
                 }
@@ -148,25 +156,84 @@ class VocabularyViewModel @Inject constructor(
         }
     }
 
+    fun enterManualMode() {
+        val word = _uiState.value.searchQuery.trim().replaceFirstChar { it.uppercaseChar() }
+        val hasGemini = BuildConfig.GEMINI_API_KEY.isNotBlank()
+        _uiState.update {
+            it.copy(
+                isManualEntry = true,
+                manualWord = word,
+                ipaInput = "",
+                viMeaning = "",
+                customImageUrl = "",
+                manualExamples = emptyList(),
+                dictionaryExamples = emptyList(),
+                geminiError = null,
+                isSaved = false,
+                isLoadingGeminiInfo = hasGemini && word.isNotEmpty()
+            )
+        }
+        if (hasGemini && word.isNotEmpty()) {
+            viewModelScope.launch {
+                getWordInfoFromGeminiUseCase(word)
+                    .onSuccess { geminiInfo ->
+                        _uiState.update {
+                            it.copy(
+                                isLoadingGeminiInfo = false,
+                                viMeaning = geminiInfo.meaning,
+                                dictionaryExamples = geminiInfo.examples
+                            )
+                        }
+                    }
+                    .onFailure {
+                        _uiState.update { it.copy(isLoadingGeminiInfo = false) }
+                    }
+            }
+        }
+    }
+
+    fun onManualWordChange(word: String) {
+        _uiState.update { it.copy(manualWord = word) }
+    }
+
     fun saveVocabularyCard() {
         val state = _uiState.value
-        val entry = state.dictionaryEntry ?: return
         viewModelScope.launch {
-            val allExamples = state.dictionaryExamples + state.manualExamples
-            val meaning = state.viMeaning.trim().ifEmpty {
-                entry.meanings.firstOrNull()?.definitions?.firstOrNull()?.definition.orEmpty()
+            val word: String
+            val audioUrl: String
+            val wordType: String
+            val allExamples: List<Example>
+            val meaning: String
+
+            if (state.isManualEntry) {
+                word = state.manualWord.trim().replaceFirstChar { it.uppercaseChar() }
+                if (word.isEmpty()) return@launch
+                audioUrl = ""
+                wordType = ""
+                allExamples = state.manualExamples
+                meaning = state.viMeaning.trim()
+            } else {
+                val entry = state.dictionaryEntry ?: return@launch
+                word = entry.word
+                audioUrl = entry.audioUrl
+                wordType = entry.wordType
+                allExamples = state.dictionaryExamples + state.manualExamples
+                meaning = state.viMeaning.trim().ifEmpty {
+                    entry.meanings.firstOrNull()?.definitions?.firstOrNull()?.definition.orEmpty()
+                }
             }
+
             val card = VocabularyCard(
                 id = UUID.randomUUID().toString(),
-                word = entry.word,
+                word = word,
                 ipa = state.ipaInput.trim(),
-                audioUrl = entry.audioUrl,
+                audioUrl = audioUrl,
                 meaning = meaning,
                 examples = allExamples,
                 memorizationLevel = 0,
                 updatedAt = System.currentTimeMillis(),
                 isSynced = false,
-                wordType = entry.wordType,
+                wordType = wordType,
                 imageUrl = state.customImageUrl.trim()
             )
             runCatching { saveVocabularyCardUseCase(card) }

@@ -187,20 +187,21 @@ class SentenceViewModel @Inject constructor(
         val sentence = _uiState.value.sentence
         if (sentence.isBlank()) return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingGemini = true, error = null) }
+            _uiState.update { it.copy(isLoadingGemini = true, geminiError = null) }
             getSentenceInfoFromGeminiUseCase(sentence)
                 .onSuccess { info ->
                     _uiState.update {
                         it.copy(
                             isLoadingGemini = false,
                             description = info.description,
-                            relatedExamples = info.examples
+                            relatedExamples = info.examples,
+                            geminiError = null
                         )
                     }
                 }
                 .onFailure { error ->
                     _uiState.update {
-                        it.copy(isLoadingGemini = false, error = "Không thể tải từ Gemini: ${error.message}")
+                        it.copy(isLoadingGemini = false, geminiError = "Không thể tải từ Gemini: ${error.message}")
                     }
                 }
         }

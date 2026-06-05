@@ -17,4 +17,6 @@ interface VocabularyRepository {
     suspend fun getAllCardsOnce(): List<VocabularyCard>
     suspend fun markAllSynced()
     suspend fun getWordSuggestions(query: String): Result<List<String>>
+    suspend fun getCardsCreatedBetween(from: Long, to: Long): List<VocabularyCard>
+    suspend fun getCardsReviewedBetween(from: Long, to: Long): List<VocabularyCard>
 }

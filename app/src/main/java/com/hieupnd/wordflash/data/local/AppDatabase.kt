@@ -18,9 +18,18 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE vocabulary_cards ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("UPDATE vocabulary_cards SET createdAt = updatedAt")
+        db.execSQL("ALTER TABLE sentence_cards ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("UPDATE sentence_cards SET createdAt = updatedAt")
+    }
+}
+
 @Database(
     entities = [VocabularyCardEntity::class, SentenceCardEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -20,7 +20,7 @@
     <td align="center" width="50%">
       <img src="doc/screenshots/vocabulary_search2.jpg" width="280"/><br/>
       <b>Ảnh & Câu Ví Dụ</b><br/>
-      Nhập URL ảnh minh hoạ tuỳ chọn với preview trực tiếp. Gemini tự động sinh 3 câu ví dụ song ngữ EN–VI; người dùng có thể thêm câu ví dụ thủ công trước khi lưu.
+      Nhập URL ảnh minh hoạ tuỳ chọn với preview trực tiếp. Gemini tự động sinh 3 câu ví dụ song ngữ EN–VI; người dùng có thể thêm câu ví dụ thủ công trước khi lưu. Nhập từ thủ công khi tra từ điển thất bại cũng tự động gọi Gemini để điền nghĩa và ví dụ.
     </td>
   </tr>
 </table>
@@ -45,10 +45,15 @@
 
 <table>
   <tr>
-    <td align="center">
-      <img src="doc/screenshots/sentence_builder.jpg" width="280"/><br/>
-      <b>Sentence Builder</b><br/>
-      Chọn thành phần câu từ 3 tab: <b>Loại từ</b> (12 word types), <b>Thành phần</b> (11 sentence roles), <b>Tuỳ chỉnh</b>. Nhấn chip để xem mô tả chi tiết → nhấn + để thêm vào cấu trúc. Nút <i>"Tự động điền từ Gemini"</i> sinh mô tả cách dùng và 3 câu ví dụ EN–VI.
+    <td align="center" width="50%">
+      <img src="doc/screenshots/sentence_builder2.jpg" width="280"/><br/>
+      <b>Chọn Thành Phần Câu</b><br/>
+      Chọn thành phần câu từ 3 tab: <b>Loại từ</b> (12 word types), <b>Thành phần</b> (11 sentence roles), <b>Tuỳ chỉnh</b>. Nhấn chip để xem mô tả chi tiết → nhấn + để thêm vào cấu trúc.
+    </td>
+    <td align="center" width="50%">
+      <img src="doc/screenshots/sentence_builder1.jpg" width="280"/><br/>
+      <b>Mô Tả & Ví Dụ</b><br/>
+      Nhập mô tả cách dùng và câu ví dụ song ngữ EN–VI thủ công. Nút <i>"Tự động điền từ Gemini"</i> sinh mô tả và 3 câu ví dụ tự động.
     </td>
   </tr>
 </table>
@@ -88,17 +93,41 @@
 
 ---
 
+### 6. Cài Đặt
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="doc/screenshots/setting1.jpg" width="280"/><br/>
+      <b>Tài Khoản & Thông Báo</b><br/>
+      Đăng nhập Google để đồng bộ dữ liệu lên Firebase Firestore. Bật/tắt thông báo nhắc nhở hàng ngày và tuỳ chỉnh giờ nhắc. Xem streak học liên tục ngay bên dưới.
+    </td>
+    <td align="center" width="50%">
+      <img src="doc/screenshots/setting2.jpg" width="280"/><br/>
+      <b>Thống Kê Hoạt Động</b><br/>
+      Biểu đồ 7 ngày gần nhất hiển thị số từ thêm, câu thêm và lượt ôn tập mỗi ngày. Streak hiện tại và kỷ lục streak dài nhất được hiển thị nổi bật.
+    </td>
+  </tr>
+</table>
+
+> Truy cập màn hình Cài đặt bằng cách nhấn icon ⚙️ ở góc trên bên phải của bất kỳ màn hình nào.
+
+---
+
 ## Tính Năng Nổi Bật
 
 | Tính năng | Chi tiết |
 |-----------|----------|
 | **Tra từ điển** | Dictionary API — IPA, từ loại, định nghĩa, phát âm TTS |
 | **Gợi ý từ** | Datamuse API khi không tìm thấy từ trong từ điển |
-| **Gemini AI** | Tự động dịch nghĩa VI, sinh câu ví dụ song ngữ, mô tả cấu trúc câu |
+| **Gemini AI** | Tự động dịch nghĩa VI, sinh câu ví dụ song ngữ, mô tả cấu trúc câu; tự động kích hoạt khi nhập từ thủ công |
 | **Spaced Repetition** | Thuật toán trọng số theo mức độ ghi nhớ + số ngày kể từ lần ôn cuối |
 | **Sentence Builder** | 12 word types + 11 sentence roles + custom; tạo cấu trúc bằng chip trực quan |
-| **Nhắc nhở hàng ngày** | WorkManager — thông báo đẩy nhắc học, kiểm tra đã học hôm nay chưa |
+| **Nhắc nhở hàng ngày** | WorkManager — thông báo đẩy nhắc học, nhấn thông báo mở thẳng màn hình Ôn tập |
+| **Streak** | Đếm số ngày ôn tập liên tục, lưu kỷ lục dài nhất |
+| **Thống kê** | Biểu đồ hoạt động 7 ngày: từ thêm / câu thêm / lượt ôn |
 | **Firebase Sync** | Google Sign-In + Firestore đồng bộ flashcard lên đám mây |
+| **Cài đặt tập trung** | Một màn hình Cài đặt gộp tài khoản, thông báo và thống kê |
 | **Giới hạn phiên học** | 20 từ vựng + 5 cấu trúc câu mỗi ngày để tránh quá tải |
 
 ---

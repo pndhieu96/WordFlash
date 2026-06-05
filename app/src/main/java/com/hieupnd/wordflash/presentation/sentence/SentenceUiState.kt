@@ -28,7 +28,8 @@ data class SentenceUiState(
     val selectedTab: Int = 0,
     val editingCard: SentenceCard? = null,
     val deleteConfirmId: String? = null,
-    val collectionQuery: String = ""
+    val collectionQuery: String = "",
+    val geminiError: String? = null
 ) {
     val sentence: String get() = structureItems.joinToString(" + ") { it.displayName }
 }

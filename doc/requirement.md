@@ -24,6 +24,7 @@ Tính năng này cho phép người dùng tìm kiếm từ vựng và chủ đ�
 **Chức năng tra cứu:**
 - Ô tìm kiếm (Search bar) kết nối với API Từ điển
 - Hiển thị kết quả tìm kiếm từng từ
+- **Khi không tìm thấy từ**: hiện card lỗi + gợi ý từ Datamuse + nút **"Tự nhập từ thủ công"**
 
 **Nội dung hiển thị của từ:**
 - **Từ gốc (Word)**: Từ tiếng Anh cần học
@@ -35,6 +36,11 @@ Tính năng này cho phép người dùng tìm kiếm từ vựng và chủ đ�
   - Người dùng có thể **tự thêm câu ví dụ thủ công** (EN + VI tùy chọn) ngay trong Search tab trước khi lưu
 - **Hình ảnh minh họa**:
   - **Ô nhập URL ảnh** — người dùng tự tìm và paste URL ảnh bất kỳ; preview hiển thị ngay bên dưới
+
+**Nhập từ thủ công (khi không có trong từ điển):**
+- Nhấn "Tự nhập từ thủ công" → form xuất hiện với: ô Từ tiếng Anh (pre-filled từ search query, có thể sửa), IPA (tuỳ chọn), Nghĩa VI (tuỳ chọn), URL ảnh, thêm câu ví dụ
+- Nút "Thêm Flashcard" — enabled khi tên từ không trống
+- `VocabularyUiState.isManualEntry: Boolean` + `manualWord: String`; `VocabularyViewModel.enterManualMode()` pre-fill từ searchQuery; `saveVocabularyCard()` xử lý cả 2 nhánh dictionary và manual
 
 **Hành động:**
 - Nút "Thêm Flashcard" để lưu toàn bộ thông tin vào Room Database
@@ -55,7 +61,7 @@ Tính năng này cho phép người dùng tìm kiếm từ vựng và chủ đ�
 
 **Lưu ý kỹ thuật:**
 - `VocabularyViewModel.searchWord()` kích hoạt 2 coroutine song song: `SearchWordUseCase` → DictionaryApi (IPA, audio, từ loại) và `GetWordInfoFromGeminiUseCase` → GeminiService (nghĩa VI, 3 câu ví dụ EN+VI)
-- GeminiService inject `List<GenerativeModel>` (`@Named("gemini_models")`), rotate qua 4 model theo thứ tự: `gemini-2.5-flash-lite` → `gemini-2.5-flash` → `gemini-3.5-flash` → `gemini-3.1-flash-lite`; tất cả dùng `responseMimeType = "application/json"`
+- GeminiService inject `List<GenerativeModel>` (`@Named("gemini_models")`), rotate qua 4 model theo thứ tự: `gemini-2.5-flash-lite` → `gemini-2.5-flash` → `gemini-1.5-flash` → `gemini-1.5-flash-lite`; tất cả dùng `responseMimeType = "application/json"`
 - Cơ chế retry + model rotation: mỗi model thử tối đa 3 lần với exponential backoff (1s → 2s → 4s) khi bị `QuotaExceededException`; hết retry thì rotate sang model tiếp; `currentModelIndex` (AtomicInteger) nhớ model đang hoạt động qua các lần gọi
 - GEMINI_API_KEY lưu trong `local.properties` (gitignored), expose qua `BuildConfig.GEMINI_API_KEY`
 - Khi không tìm thấy từ, Datamuse API trả về danh sách gợi ý từ (`/sug?s=<query>`)
@@ -174,6 +180,38 @@ Hệ thống sẽ dựa vào cấp độ này để phân phối tần suất xu
 **Progress bar:**
 - Hiển thị `(currentIndex + 1) / totalItems` — khớp với text "1/20" ngay từ card đầu tiên
 
+**Giữ session khi back/chuyển tab:**
+- `ReviewViewModel` được scope ở cấp Activity (`hiltViewModel(LocalContext.current as ComponentActivity)`) thay vì NavBackStackEntry, nên ViewModel không bị clear khi user điều hướng sang tab khác rồi quay lại — session tiếp tục đúng card đang xem
+
+**Thông báo nhắc học → điều hướng về màn hình Ôn tập:**
+- `NotificationHelper.showReminder()` đính kèm `PendingIntent` với `action = ACTION_NAVIGATE_TO_REVIEW` trỏ về `MainActivity`
+- `MainActivity` xử lý intent trong `onCreate` và `onNewIntent` (launchMode `singleTop`), truyền `pendingRoute` xuống `AppNavigation` qua `LaunchedEffect`
+
+### 3.4 Màn hình 4: Thống Kê (Stats)
+
+Tab thứ 4 trong bottom navigation, hiển thị tiến độ học tập theo ngày.
+
+**Streak (Chuỗi ngày liên tục):**
+- Card hiển thị: icon lửa + "X ngày liên tiếp" + "Kỷ lục: Y ngày"
+- Logic: mỗi khi hoàn thành phiên ôn tập (`markStudiedToday()`), so sánh `lastStudyDate` với hôm qua
+  - Nếu học hôm qua → `currentStreak + 1`
+  - Nếu gián đoạn → reset về 1
+  - Nếu đã đánh dấu hôm nay rồi → không thay đổi
+- Lưu trong SharedPreferences: `KEY_CURRENT_STREAK`, `KEY_LONGEST_STREAK`
+- Migration: khi app khởi động, nếu `KEY_LAST_STUDY_DATE == today` và `KEY_CURRENT_STREAK` chưa tồn tại → tự khởi tạo streak = 1
+
+**Biểu đồ hoạt động 7 ngày:**
+- Mỗi ngày hiển thị 3 thanh màu: **từ thêm** (xanh lá), **câu thêm** (xanh dương), **lượt ôn** (cam)
+- Vẽ bằng Compose `Canvas` — không cần thư viện ngoài
+- Label ngày dưới mỗi cột; ngày hôm nay dùng màu primary + label "Hôm nay"
+- Nguồn dữ liệu: query Room theo trường `createdAt` (từ/câu thêm) và `lastReviewedAt` (lượt ôn) trong khoảng từng ngày
+
+**Lưu ý kỹ thuật:**
+- `StatsViewModel` inject `GetDailyStatsUseCase` + SharedPreferences (đọc streak)
+- `GetDailyStatsUseCase(days = 7)`: với mỗi ngày, query `VocabularyCardDao.getCardsCreatedBetween()`, `SentenceCardDao.getCardsCreatedBetween()`, `VocabularyCardDao.getCardsReviewedBetween()` → trả về `List<DailyStats>`
+- `DailyStats` domain model: `date: LocalDate`, `vocabAdded: Int`, `sentencesAdded: Int`, `reviewCount: Int`
+- `StatsScreen` gọi `viewModel.loadStats()` qua `LaunchedEffect(Unit)` để reload khi quay lại tab
+
 ## 4. Thiết Kế Cơ Sở Dữ Liệu (Database Design - Room to Firebase)
 
 Để đảm bảo sau này push dữ liệu lên Firebase mượt mà, cấu trúc bảng trong Room cần được thiết kế đồng bộ (sử dụng các trường ID duy nhất dạng String/UUID thay vì tự tăng Int của Room).
@@ -192,6 +230,7 @@ imageUrl: String (URL ảnh do người dùng tự nhập)
 memorizationLevel: Int (0: Không nhớ, 1: Hơi nhớ, 2: Đã nhớ)
 updatedAt: Long (Timestamp để đồng bộ sau này)
 lastReviewedAt: Long (Thời gian ôn tập gần nhất)
+createdAt: Long (Timestamp khi thêm từ lần đầu — dùng cho thống kê; existing records migrate = updatedAt)
 isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 ```
 
@@ -201,15 +240,24 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 id: String (Primary Key - UUID)
 sentence: String (Preview câu — join displayName của các StructureItem bằng " + ")
 description: String (Mô tả, chú thích cấu trúc)
-relatedExamples: String (JSON serialized List<String> các câu ví dụ)
+relatedExamples: String (JSON serialized List<Example> — mỗi Example: enSentence, viSentence)
 memorizationLevel: Int (0, 1, 2 tương tự từ vựng)
 updatedAt: Long (Timestamp)
+lastReviewedAt: Long (Thời gian ôn tập gần nhất)
+createdAt: Long (Timestamp khi thêm câu lần đầu — dùng cho thống kê; existing records migrate = updatedAt)
 isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 ```
 
 > **Lưu ý**: `StructureItem` chỉ tồn tại ở tầng Presentation (UiState) khi đang tạo cấu trúc. Sau khi lưu, chỉ field `sentence` (string) được persist. Nếu cần lưu cấu trúc chi tiết để edit lại, cần thêm field JSON cho `structureItems` trong tương lai.
 
-### 4.3 Lưu ý thiết kế dành cho Firebase integration
+### 4.3 Room Migrations
+
+| Version | Nội dung |
+|---------|----------|
+| v1 → v2 | Thêm `wordType`, `imageUrl`, `lastReviewedAt` vào `vocabulary_cards`; thêm `lastReviewedAt` vào `sentence_cards` |
+| v2 → v3 | Thêm `createdAt` vào cả hai bảng; existing records: `createdAt = updatedAt` |
+
+### 4.4 Lưu ý thiết kế dành cho Firebase integration
 
 - Thêm trường `isSynced: Boolean` (Default = false) ở mỗi bảng trong Room
 - Khi push lên Firebase thành công, cập nhật trường này thành true
@@ -219,7 +267,7 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 
 ### APIs được sử dụng
 - **Dictionary API**: https://api.dictionaryapi.dev/ (Từ điển tiếng Anh — IPA, audio URL, từ loại)
-- **Gemini API**: Google AI SDK — model rotation `gemini-2.5-flash-lite` → `gemini-2.5-flash` → `gemini-3.5-flash` → `gemini-3.1-flash-lite` (auto retry + rotate khi rate limited); (1) tra từ vựng: trả về nghĩa VI + 3 câu ví dụ EN+VI; (2) cấu trúc câu: trả về mô tả cách dùng + 3 câu ví dụ EN+VI. API key lưu trong `local.properties` (`GEMINI_API_KEY`), không commit
+- **Gemini API**: Google AI SDK — model rotation `gemini-2.5-flash-lite` → `gemini-2.5-flash` → `gemini-1.5-flash` → `gemini-1.5-flash-lite` (auto retry + rotate khi rate limited); (1) tra từ vựng: trả về nghĩa VI + 3 câu ví dụ EN+VI; (2) cấu trúc câu: trả về mô tả cách dùng + 3 câu ví dụ EN+VI. API key lưu trong `local.properties` (`GEMINI_API_KEY`), không commit
 - **Datamuse API**: https://api.datamuse.com/sug (Gợi ý từ khi không tìm thấy trong từ điển)
 
 ### Libraries chính
@@ -273,6 +321,16 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 - [x] **Ảnh hiển thị `aspectRatio(4f/3f)` + `ContentScale.Fit` xuyên suốt; CollectionTab ảnh 2/3 width** _(Phase 5)_
 - [x] **Tab "Bộ sưu tập" hiển thị trước "Tìm kiếm" trong màn hình Vocabulary** _(Phase 5)_
 - [x] **Gemini retry + model rotation: exponential backoff → rotate qua 4 model khi rate limited** _(Phase 5)_
+
+### Hoàn thành Phase 8 ✅
+- [x] **Fix: Nhấn back/chuyển tab giữa phiên ôn tập không bị reload — activity-scoped ViewModel** _(Phase 8)_
+- [x] **Fix: Nhấn thông báo nhắc học mở thẳng màn hình Ôn tập (PendingIntent + onNewIntent)** _(Phase 8)_
+- [x] **Streak: đếm số ngày ôn tập liên tục, lưu SharedPreferences, migration tự động** _(Phase 8)_
+- [x] **Tab Thống kê (tab thứ 4): streak card + biểu đồ thanh 7 ngày (từ/câu/lượt ôn)** _(Phase 8)_
+- [x] **DB migration v2→v3: thêm `createdAt` vào vocabulary_cards và sentence_cards** _(Phase 8)_
+- [x] **`GetDailyStatsUseCase` + `DailyStats` domain model + `StatsViewModel/Screen`** _(Phase 8)_
+- [x] **Tự nhập từ thủ công khi từ không có trong từ điển (nút + form `ManualEntryCard`)** _(Phase 8)_
+- [x] **Fix schema: `relatedExamples` đúng là `List<Example>` (không phải `List<String>`)** _(Phase 8)_
 
 ### Cần phát triển 📋
 - [ ] Offline support enhancement

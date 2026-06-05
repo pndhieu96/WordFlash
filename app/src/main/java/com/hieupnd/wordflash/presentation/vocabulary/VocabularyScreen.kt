@@ -1,9 +1,6 @@
 package com.hieupnd.wordflash.presentation.vocabulary
 
-import android.app.Activity
 import android.speech.tts.TextToSpeech
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,17 +34,14 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -78,11 +72,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
-import com.google.android.gms.common.api.ApiException
-import com.google.android.gms.common.api.CommonStatusCodes
-import com.hieupnd.wordflash.presentation.sync.SyncViewModel
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -99,29 +88,12 @@ import java.util.Locale
 @Composable
 fun VocabularyScreen(
     innerPadding: PaddingValues,
-    viewModel: VocabularyViewModel = hiltViewModel(),
-    syncViewModel: SyncViewModel = hiltViewModel()
+    onNavigateToSettings: () -> Unit = {},
+    viewModel: VocabularyViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val syncUiState by syncViewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    var showAccountMenu by remember { mutableStateOf(false) }
-    val signInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            syncViewModel.onGoogleSignInResult(account)
-        } catch (e: ApiException) {
-            val message = when (e.statusCode) {
-                GoogleSignInStatusCodes.SIGN_IN_CANCELLED -> null // người dùng tự huỷ hoặc nhấn Back
-                CommonStatusCodes.DEVELOPER_ERROR -> "Lỗi cấu hình: kiểm tra SHA-1 trong Firebase Console"
-                CommonStatusCodes.NETWORK_ERROR -> "Lỗi mạng, thử lại sau"
-                else -> "Đăng nhập thất bại (mã lỗi: ${e.statusCode})"
-            }
-            syncViewModel.onGoogleSignInError(message)
-        }
-    }
+    val context = LocalContext.current
 
     val tts = remember {
         var instance: TextToSpeech? = null
@@ -138,45 +110,8 @@ fun VocabularyScreen(
         TopAppBar(
             title = { Text("WordFlash") },
             actions = {
-                if (syncUiState.currentUser != null) {
-                    if (syncUiState.isSyncing) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(end = 4.dp))
-                    } else {
-                        IconButton(onClick = { syncViewModel.sync() }) {
-                            Icon(Icons.Default.Sync, contentDescription = "Đồng bộ")
-                        }
-                    }
-                }
-                Box {
-                    IconButton(onClick = { showAccountMenu = true }) {
-                        Icon(Icons.Default.Person, contentDescription = "Tài khoản")
-                    }
-                    DropdownMenu(expanded = showAccountMenu, onDismissRequest = { showAccountMenu = false }) {
-                        if (syncUiState.currentUser != null) {
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(syncUiState.currentUser!!.displayName ?: "Người dùng", style = MaterialTheme.typography.bodyMedium)
-                                        Text(syncUiState.currentUser!!.email ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                },
-                                onClick = {}
-                            )
-                            HorizontalDivider()
-                            DropdownMenuItem(
-                                text = { Text("Đăng xuất") },
-                                onClick = { syncViewModel.signOut(); showAccountMenu = false }
-                            )
-                        } else {
-                            DropdownMenuItem(
-                                text = { Text("Đăng nhập với Google") },
-                                onClick = {
-                                    showAccountMenu = false
-                                    signInLauncher.launch(syncViewModel.googleSignInClient.signInIntent)
-                                }
-                            )
-                        }
-                    }
+                IconButton(onClick = onNavigateToSettings) {
+                    Icon(Icons.Default.Settings, contentDescription = "Cài đặt")
                 }
             }
         )
@@ -222,7 +157,9 @@ fun VocabularyScreen(
                     viewModel.onSearchQueryChange(word)
                     focusManager.clearFocus()
                     viewModel.searchWord()
-                }
+                },
+                onEnterManualMode = viewModel::enterManualMode,
+                onManualWordChange = viewModel::onManualWordChange
             )
         }
     }
@@ -406,32 +343,6 @@ fun VocabularyScreen(
         )
     }
 
-    // Sync error dialog
-    syncUiState.syncError?.let { error ->
-        AlertDialog(
-            onDismissRequest = syncViewModel::clearError,
-            title = { Text("Lỗi đồng bộ") },
-            text = { Text(error) },
-            confirmButton = { TextButton(onClick = syncViewModel::clearError) { Text("OK") } }
-        )
-    }
-
-    // Sync result dialog
-    syncUiState.syncResult?.let { result ->
-        AlertDialog(
-            onDismissRequest = syncViewModel::clearSyncResult,
-            title = { Text("Đồng bộ thành công") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Từ vựng: +${result.vocabAdded} mới, cập nhật ${result.vocabUpdated}")
-                    Text("Câu: +${result.sentenceAdded} mới, cập nhật ${result.sentenceUpdated}")
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = syncViewModel::clearSyncResult) { Text("OK") }
-            }
-        )
-    }
 }
 
 @Composable
@@ -446,7 +357,9 @@ private fun SearchTab(
     onRemoveManualExample: (Int) -> Unit,
     onSave: () -> Unit,
     onSpeak: (String) -> Unit,
-    onSuggestionClick: (String) -> Unit
+    onSuggestionClick: (String) -> Unit,
+    onEnterManualMode: () -> Unit = {},
+    onManualWordChange: (String) -> Unit = {}
 ) {
     var newExampleEn by remember { mutableStateOf("") }
     var newExampleVi by remember { mutableStateOf("") }
@@ -480,11 +393,11 @@ private fun SearchTab(
             )
         }
 
-        uiState.error?.let { error ->
+        if (uiState.error != null && !uiState.isManualEntry) {
             item {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(text = error, color = MaterialTheme.colorScheme.onErrorContainer)
+                        Text(text = uiState.error, color = MaterialTheme.colorScheme.onErrorContainer)
                         if (uiState.suggestions.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
@@ -505,8 +418,32 @@ private fun SearchTab(
                                 }
                             }
                         }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = onEnterManualMode,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Tự nhập từ thủ công")
+                        }
                     }
                 }
+            }
+        }
+
+        if (uiState.isManualEntry) {
+            item {
+                ManualEntryCard(
+                    uiState = uiState,
+                    onManualWordChange = onManualWordChange,
+                    onIpaChange = onIpaChange,
+                    onViMeaningChange = onViMeaningChange,
+                    onCustomImageUrlChange = onCustomImageUrlChange,
+                    onAddManualExample = onAddManualExample,
+                    onRemoveManualExample = onRemoveManualExample,
+                    onSave = onSave
+                )
             }
         }
 
@@ -550,6 +487,7 @@ private fun SearchTab(
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 2,
                             enabled = !uiState.isLoadingGeminiInfo,
+                            isError = uiState.geminiError != null && uiState.viMeaning.isEmpty(),
                             trailingIcon = {
                                 if (uiState.isLoadingGeminiInfo) {
                                     CircularProgressIndicator(modifier = Modifier.size(20.dp))
@@ -600,6 +538,12 @@ private fun SearchTab(
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp))
                                 Text("Đang tải câu ví dụ từ Gemini...", style = MaterialTheme.typography.bodySmall)
                             }
+                        } else if (uiState.geminiError != null) {
+                            Text(
+                                text = uiState.geminiError,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
                         } else {
                             uiState.dictionaryExamples.forEach { example ->
                                 Card(
@@ -723,6 +667,196 @@ private fun SearchTab(
     }
 }
 
+
+@Composable
+private fun ManualEntryCard(
+    uiState: VocabularyUiState,
+    onManualWordChange: (String) -> Unit,
+    onIpaChange: (String) -> Unit,
+    onViMeaningChange: (String) -> Unit,
+    onCustomImageUrlChange: (String) -> Unit,
+    onAddManualExample: (Example) -> Unit,
+    onRemoveManualExample: (Int) -> Unit,
+    onSave: () -> Unit
+) {
+    var newExampleEn by remember { mutableStateOf("") }
+    var newExampleVi by remember { mutableStateOf("") }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                "Nhập từ thủ công",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            OutlinedTextField(
+                value = uiState.manualWord,
+                onValueChange = onManualWordChange,
+                label = { Text("Từ tiếng Anh") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = uiState.ipaInput,
+                onValueChange = onIpaChange,
+                label = { Text("IPA (tuỳ chọn)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text("/.../ ") }
+            )
+            OutlinedTextField(
+                value = uiState.viMeaning,
+                onValueChange = onViMeaningChange,
+                label = { Text("Nghĩa tiếng Việt (tuỳ chọn)") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                enabled = !uiState.isLoadingGeminiInfo,
+                trailingIcon = {
+                    if (uiState.isLoadingGeminiInfo) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                    }
+                }
+            )
+            HorizontalDivider()
+            Text(
+                "Ảnh minh hoạ",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            OutlinedTextField(
+                value = uiState.customImageUrl,
+                onValueChange = onCustomImageUrlChange,
+                label = { Text("Nhập URL ảnh (tuỳ chọn)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            if (uiState.customImageUrl.isNotBlank()) {
+                WordFlashAsyncImage(
+                    url = uiState.customImageUrl,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+            HorizontalDivider()
+            Text(
+                "Câu ví dụ",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (uiState.isLoadingGeminiInfo) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                    Text("Đang tải câu ví dụ từ Gemini...", style = MaterialTheme.typography.bodySmall)
+                }
+            } else {
+                uiState.dictionaryExamples.forEach { example ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text(
+                                "• ${example.enSentence}",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontStyle = FontStyle.Italic
+                            )
+                            if (example.viSentence.isNotEmpty()) {
+                                Text(
+                                    "  ${example.viSentence}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+            }
+            uiState.manualExamples.forEachIndexed { index, example ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(example.enSentence, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic)
+                            if (example.viSentence.isNotEmpty()) {
+                                Text(example.viSentence, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                        }
+                        IconButton(onClick = { onRemoveManualExample(index) }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+            OutlinedTextField(
+                value = newExampleEn,
+                onValueChange = { newExampleEn = it },
+                label = { Text("Câu ví dụ tiếng Anh") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+            )
+            OutlinedTextField(
+                value = newExampleVi,
+                onValueChange = { newExampleVi = it },
+                label = { Text("Dịch tiếng Việt (tuỳ chọn)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    if (newExampleEn.isNotBlank()) {
+                        onAddManualExample(Example(newExampleEn.trim(), newExampleVi.trim()))
+                        newExampleEn = ""; newExampleVi = ""
+                    }
+                })
+            )
+            Button(
+                onClick = {
+                    if (newExampleEn.isNotBlank()) {
+                        onAddManualExample(Example(newExampleEn.trim(), newExampleVi.trim()))
+                        newExampleEn = ""; newExampleVi = ""
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = newExampleEn.isNotBlank()
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Thêm câu ví dụ")
+            }
+            Button(
+                onClick = {
+                    if (newExampleEn.isNotBlank()) {
+                        onAddManualExample(Example(newExampleEn.trim(), newExampleVi.trim()))
+                        newExampleEn = ""; newExampleVi = ""
+                    }
+                    onSave()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = uiState.manualWord.isNotBlank() && !uiState.isSaved
+            ) {
+                if (uiState.isSaved) {
+                    Icon(Icons.Default.Check, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Đã lưu")
+                } else {
+                    Text("Thêm Flashcard")
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun WordMeaningSection(meaning: WordMeaning) {

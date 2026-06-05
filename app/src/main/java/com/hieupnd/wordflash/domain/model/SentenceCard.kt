@@ -8,5 +8,6 @@ data class SentenceCard(
     val memorizationLevel: Int = 0,
     val updatedAt: Long = System.currentTimeMillis(),
     val isSynced: Boolean = false,
-    val lastReviewedAt: Long = 0
+    val lastReviewedAt: Long = 0,
+    val createdAt: Long = 0
 )

@@ -13,4 +13,5 @@ interface SentenceRepository {
     suspend fun getAllCardsOnce(): List<SentenceCard>
     suspend fun markAllSynced()
     suspend fun getSentenceInfoFromGemini(sentence: String): Result<GeminiSentenceInfo>
+    suspend fun getCardsCreatedBetween(from: Long, to: Long): List<SentenceCard>
 }

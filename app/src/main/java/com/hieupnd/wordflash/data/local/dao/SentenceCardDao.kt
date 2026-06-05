@@ -35,4 +35,7 @@ interface SentenceCardDao {
 
     @Query("UPDATE sentence_cards SET isSynced = 1")
     suspend fun markAllSynced()
+
+    @Query("SELECT * FROM sentence_cards WHERE createdAt >= :from AND createdAt < :to AND createdAt > 0")
+    suspend fun getCardsCreatedBetween(from: Long, to: Long): List<SentenceCardEntity>
 }

@@ -10,8 +10,8 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -21,6 +21,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.hieupnd.wordflash.presentation.review.ReviewScreen
 import com.hieupnd.wordflash.presentation.sentence.SentenceScreen
+import com.hieupnd.wordflash.presentation.settings.SettingsScreen
 import com.hieupnd.wordflash.presentation.vocabulary.VocabularyScreen
 
 private data class NavItem(
@@ -36,46 +37,79 @@ private val navItems = listOf(
 )
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    pendingRoute: String? = null,
+    onRoutePending: () -> Unit = {}
+) {
     val navController = rememberNavController()
+
+    LaunchedEffect(pendingRoute) {
+        pendingRoute?.let {
+            navController.navigate(it) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+            onRoutePending()
+        }
+    }
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val showBottomBar = currentRoute != Screen.Settings.route
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
-                navItems.forEach { item ->
-                    NavigationBarItem(
-                        selected = currentDestination?.hierarchy?.any { it.route == item.screen.route } == true,
-                        onClick = {
-                            navController.navigate(item.screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+            if (showBottomBar) {
+                NavigationBar {
+                    val currentDestination = navBackStackEntry?.destination
+                    navItems.forEach { item ->
+                        NavigationBarItem(
+                            selected = currentDestination?.hierarchy?.any { it.route == item.screen.route } == true,
+                            onClick = {
+                                navController.navigate(item.screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) }
-                    )
+                            },
+                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            label = { Text(item.label) }
+                        )
+                    }
                 }
             }
         }
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Vocabulary.route,
-            modifier = Modifier
+            startDestination = Screen.Vocabulary.route
         ) {
             composable(Screen.Vocabulary.route) {
-                VocabularyScreen(innerPadding = innerPadding)
+                VocabularyScreen(
+                    innerPadding = innerPadding,
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                )
             }
             composable(Screen.Sentence.route) {
-                SentenceScreen(innerPadding = innerPadding)
+                SentenceScreen(
+                    innerPadding = innerPadding,
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                )
             }
             composable(Screen.Review.route) {
-                ReviewScreen(innerPadding = innerPadding)
+                ReviewScreen(
+                    innerPadding = innerPadding,
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                )
+            }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    innerPadding = innerPadding,
+                    onBack = { navController.popBackStack() }
+                )
             }
         }
     }

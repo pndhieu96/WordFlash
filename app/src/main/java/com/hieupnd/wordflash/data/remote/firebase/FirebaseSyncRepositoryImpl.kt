@@ -78,7 +78,8 @@ class FirebaseSyncRepositoryImpl @Inject constructor(
         "updatedAt" to updatedAt,
         "wordType" to wordType,
         "imageUrl" to imageUrl,
-        "lastReviewedAt" to lastReviewedAt
+        "lastReviewedAt" to lastReviewedAt,
+        "createdAt" to createdAt
     )
 
     private fun SentenceCard.toMap(): Map<String, Any?> = mapOf(
@@ -88,7 +89,8 @@ class FirebaseSyncRepositoryImpl @Inject constructor(
         "relatedExamples" to relatedExamples.map { mapOf("enSentence" to it.enSentence, "viSentence" to it.viSentence) },
         "memorizationLevel" to memorizationLevel,
         "updatedAt" to updatedAt,
-        "lastReviewedAt" to lastReviewedAt
+        "lastReviewedAt" to lastReviewedAt,
+        "createdAt" to createdAt
     )
 
     @Suppress("UNCHECKED_CAST")
@@ -113,7 +115,8 @@ class FirebaseSyncRepositoryImpl @Inject constructor(
             isSynced = true,
             wordType = getString("wordType") ?: "",
             imageUrl = getString("imageUrl") ?: "",
-            lastReviewedAt = getLong("lastReviewedAt") ?: 0L
+            lastReviewedAt = getLong("lastReviewedAt") ?: 0L,
+            createdAt = getLong("createdAt") ?: 0L
         )
     }.getOrNull()
 
@@ -136,7 +139,8 @@ class FirebaseSyncRepositoryImpl @Inject constructor(
             memorizationLevel = getLong("memorizationLevel")?.toInt() ?: 0,
             updatedAt = getLong("updatedAt") ?: 0L,
             isSynced = true,
-            lastReviewedAt = getLong("lastReviewedAt") ?: 0L
+            lastReviewedAt = getLong("lastReviewedAt") ?: 0L,
+            createdAt = getLong("createdAt") ?: 0L
         )
     }.getOrNull()
 }

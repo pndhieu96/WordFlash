@@ -12,5 +12,6 @@ data class VocabularyCard(
     val isSynced: Boolean = false,
     val wordType: String = "",
     val imageUrl: String = "",
-    val lastReviewedAt: Long = 0
+    val lastReviewedAt: Long = 0,
+    val createdAt: Long = 0
 )

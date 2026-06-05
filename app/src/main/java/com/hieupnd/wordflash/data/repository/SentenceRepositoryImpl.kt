@@ -22,7 +22,9 @@ class SentenceRepositoryImpl @Inject constructor(
     override fun getAllCards(): Flow<List<SentenceCard>> =
         dao.getAll().map { list -> list.map { it.toDomain() } }
 
-    override suspend fun saveCard(card: SentenceCard) = dao.insert(card.toEntity())
+    override suspend fun saveCard(card: SentenceCard) {
+        dao.insert(card.toEntity().copy(createdAt = System.currentTimeMillis()))
+    }
 
     override suspend fun updateCard(card: SentenceCard) = dao.update(card.toEntity())
 
@@ -52,7 +54,8 @@ class SentenceRepositoryImpl @Inject constructor(
             memorizationLevel = memorizationLevel,
             updatedAt = updatedAt,
             isSynced = isSynced,
-            lastReviewedAt = lastReviewedAt
+            lastReviewedAt = lastReviewedAt,
+            createdAt = createdAt
         )
     }
 
@@ -65,6 +68,9 @@ class SentenceRepositoryImpl @Inject constructor(
         geminiService.getSentenceStructureInfo(sentence)
     }
 
+    override suspend fun getCardsCreatedBetween(from: Long, to: Long): List<SentenceCard> =
+        dao.getCardsCreatedBetween(from, to).map { it.toDomain() }
+
     private fun SentenceCard.toEntity() = SentenceCardEntity(
         id = id,
         sentence = sentence,
@@ -73,6 +79,7 @@ class SentenceRepositoryImpl @Inject constructor(
         memorizationLevel = memorizationLevel,
         updatedAt = updatedAt,
         isSynced = isSynced,
-        lastReviewedAt = lastReviewedAt
+        lastReviewedAt = lastReviewedAt,
+        createdAt = createdAt
     )
 }

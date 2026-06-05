@@ -57,7 +57,15 @@ class VocabularyRepositoryImpl @Inject constructor(
     override fun getAllCards(): Flow<List<VocabularyCard>> =
         dao.getAll().map { list -> list.map { it.toDomain() } }
 
-    override suspend fun saveCard(card: VocabularyCard) = dao.insert(card.toEntity())
+    override suspend fun saveCard(card: VocabularyCard) {
+        val existing = dao.getByWord(card.word)
+        val entity = card.toEntity()
+        if (existing == null) {
+            dao.insert(entity.copy(createdAt = System.currentTimeMillis()))
+        } else {
+            dao.insert(entity.copy(createdAt = existing.createdAt))
+        }
+    }
 
     override suspend fun updateCard(card: VocabularyCard) = dao.update(card.toEntity())
 
@@ -80,6 +88,12 @@ class VocabularyRepositoryImpl @Inject constructor(
         datamuseApi.suggest(query).take(5).map { it.word }
     }
 
+    override suspend fun getCardsCreatedBetween(from: Long, to: Long): List<VocabularyCard> =
+        dao.getCardsCreatedBetween(from, to).map { it.toDomain() }
+
+    override suspend fun getCardsReviewedBetween(from: Long, to: Long): List<VocabularyCard> =
+        dao.getCardsReviewedBetween(from, to).map { it.toDomain() }
+
     private fun VocabularyCardEntity.toDomain(): VocabularyCard {
         val type = object : TypeToken<List<ExampleJson>>() {}.type
         val exampleJsons: List<ExampleJson> = runCatching {
@@ -97,7 +111,8 @@ class VocabularyRepositoryImpl @Inject constructor(
             isSynced = isSynced,
             wordType = wordType,
             imageUrl = imageUrl,
-            lastReviewedAt = lastReviewedAt
+            lastReviewedAt = lastReviewedAt,
+            createdAt = createdAt
         )
     }
 
@@ -115,7 +130,8 @@ class VocabularyRepositoryImpl @Inject constructor(
             isSynced = isSynced,
             wordType = wordType,
             imageUrl = imageUrl,
-            lastReviewedAt = lastReviewedAt
+            lastReviewedAt = lastReviewedAt,
+            createdAt = createdAt
         )
     }
 }

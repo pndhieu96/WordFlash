@@ -38,4 +38,10 @@ interface VocabularyCardDao {
 
     @Query("UPDATE vocabulary_cards SET isSynced = 1")
     suspend fun markAllSynced()
+
+    @Query("SELECT * FROM vocabulary_cards WHERE createdAt >= :from AND createdAt < :to AND createdAt > 0")
+    suspend fun getCardsCreatedBetween(from: Long, to: Long): List<VocabularyCardEntity>
+
+    @Query("SELECT * FROM vocabulary_cards WHERE lastReviewedAt >= :from AND lastReviewedAt < :to AND lastReviewedAt > 0")
+    suspend fun getCardsReviewedBetween(from: Long, to: Long): List<VocabularyCardEntity>
 }

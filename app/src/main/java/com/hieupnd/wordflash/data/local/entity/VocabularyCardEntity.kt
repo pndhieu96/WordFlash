@@ -16,7 +16,8 @@ data class VocabularyCardEntity(
     val isSynced: Boolean,
     val wordType: String = "",
     val imageUrl: String = "",
-    val lastReviewedAt: Long = 0
+    val lastReviewedAt: Long = 0,
+    val createdAt: Long = 0
 )
 
 data class ExampleJson(

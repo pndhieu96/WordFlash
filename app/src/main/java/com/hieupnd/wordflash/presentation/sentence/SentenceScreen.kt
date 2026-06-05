@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.remember
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -72,6 +73,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun SentenceScreen(
     innerPadding: PaddingValues,
+    onNavigateToSettings: () -> Unit = {},
     viewModel: SentenceViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -84,7 +86,14 @@ fun SentenceScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-        TopAppBar(title = { Text("Cấu Trúc Câu") })
+        TopAppBar(
+            title = { Text("Cấu Trúc Câu") },
+            actions = {
+                IconButton(onClick = onNavigateToSettings) {
+                    Icon(Icons.Default.Settings, contentDescription = "Cài đặt")
+                }
+            }
+        )
 
         TabRow(selectedTabIndex = uiState.selectedTab) {
             Tab(
@@ -380,6 +389,13 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
                         }
                     }
                 }
+            }
+            uiState.geminiError?.let { error ->
+                Text(
+                    text = error,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
             Spacer(modifier = Modifier.height(4.dp))
             OutlinedTextField(

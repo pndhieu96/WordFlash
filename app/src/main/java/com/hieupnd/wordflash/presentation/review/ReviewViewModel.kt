@@ -53,7 +53,29 @@ class ReviewViewModel @Inject constructor(
     private fun loadNotificationPrefs() {
         val hour = prefs.getInt(KEY_NOTIFICATION_HOUR, -1)
         val minute = prefs.getInt(KEY_NOTIFICATION_MINUTE, 0)
-        _uiState.update { it.copy(notificationHour = hour, notificationMinute = minute) }
+        var currentStreak = prefs.getInt(KEY_CURRENT_STREAK, 0)
+        var longestStreak = prefs.getInt(KEY_LONGEST_STREAK, 0)
+
+        // Migration: nếu user đã học hôm nay (dữ liệu cũ) nhưng streak chưa được track lần nào
+        val today = LocalDate.now().toString()
+        val lastStudy = prefs.getString(DailyReminderWorker.KEY_LAST_STUDY_DATE, "")
+        if (lastStudy == today && !prefs.contains(KEY_CURRENT_STREAK)) {
+            currentStreak = 1
+            longestStreak = 1
+            prefs.edit()
+                .putInt(KEY_CURRENT_STREAK, currentStreak)
+                .putInt(KEY_LONGEST_STREAK, longestStreak)
+                .apply()
+        }
+
+        _uiState.update {
+            it.copy(
+                notificationHour = hour,
+                notificationMinute = minute,
+                currentStreak = currentStreak,
+                longestStreak = longestStreak
+            )
+        }
     }
 
     private fun loadSession() {
@@ -124,8 +146,31 @@ class ReviewViewModel @Inject constructor(
 
     private fun markStudiedToday() {
         val today = LocalDate.now().toString()
-        prefs.edit().putString(DailyReminderWorker.KEY_LAST_STUDY_DATE, today).apply()
-        _uiState.update { it.copy(hasStudiedToday = true) }
+        val yesterday = LocalDate.now().minusDays(1).toString()
+        val lastStudy = prefs.getString(DailyReminderWorker.KEY_LAST_STUDY_DATE, "")
+
+        if (lastStudy == today) {
+            _uiState.update { it.copy(hasStudiedToday = true) }
+            return
+        }
+
+        val currentStreak = if (lastStudy == yesterday)
+            prefs.getInt(KEY_CURRENT_STREAK, 0) + 1
+        else 1
+        val longestStreak = maxOf(prefs.getInt(KEY_LONGEST_STREAK, 0), currentStreak)
+
+        prefs.edit()
+            .putString(DailyReminderWorker.KEY_LAST_STUDY_DATE, today)
+            .putInt(KEY_CURRENT_STREAK, currentStreak)
+            .putInt(KEY_LONGEST_STREAK, longestStreak)
+            .apply()
+        _uiState.update {
+            it.copy(
+                hasStudiedToday = true,
+                currentStreak = currentStreak,
+                longestStreak = longestStreak
+            )
+        }
     }
 
     fun restartSession() {
@@ -170,5 +215,7 @@ class ReviewViewModel @Inject constructor(
     companion object {
         private const val KEY_NOTIFICATION_HOUR = "notification_hour"
         private const val KEY_NOTIFICATION_MINUTE = "notification_minute"
+        const val KEY_CURRENT_STREAK = "current_streak"
+        const val KEY_LONGEST_STREAK = "longest_streak"
     }
 }

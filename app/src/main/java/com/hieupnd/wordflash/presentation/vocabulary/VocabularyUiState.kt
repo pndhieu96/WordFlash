@@ -23,5 +23,8 @@ data class VocabularyUiState(
     val manualExamples: List<Example> = emptyList(),
     val dictionaryExamples: List<Example> = emptyList(),
     val saveError: String? = null,
-    val collectionQuery: String = ""
+    val collectionQuery: String = "",
+    val geminiError: String? = null,
+    val isManualEntry: Boolean = false,
+    val manualWord: String = ""
 )
