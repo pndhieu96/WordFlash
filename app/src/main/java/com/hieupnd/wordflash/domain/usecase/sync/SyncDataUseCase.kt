@@ -8,8 +8,10 @@ import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 data class SyncResult(
+    val vocabUploaded: Int,
     val vocabAdded: Int,
     val vocabUpdated: Int,
+    val sentenceUploaded: Int,
     val sentenceAdded: Int,
     val sentenceUpdated: Int
 )
@@ -31,6 +33,7 @@ class SyncDataUseCase @Inject constructor(
         syncRepository.uploadVocabularyCards(uid, localVocab).getOrThrow()
         val remoteVocab = syncRepository.downloadVocabularyCards(uid).getOrThrow()
         var vocabAdded = 0; var vocabUpdated = 0
+        val vocabUploaded = localVocab.size
         val vocabOrphans = mutableListOf<String>()
         remoteVocab.forEach { remote ->
             val local = localVocabById[remote.id]
@@ -54,6 +57,7 @@ class SyncDataUseCase @Inject constructor(
         // --- Sentence ---
         val localSentence = sentenceRepository.getAllCardsOnce()
         val localSentenceById = localSentence.associateBy { it.id }
+        val sentenceUploaded = localSentence.size
         if (localSentence.isNotEmpty()) {
             syncRepository.uploadSentenceCards(uid, localSentence).getOrThrow()
         }
@@ -78,6 +82,6 @@ class SyncDataUseCase @Inject constructor(
             sentenceRepository.markAllSynced()
         }
 
-        SyncResult(vocabAdded, vocabUpdated, sentenceAdded, sentenceUpdated)
+        SyncResult(vocabUploaded, vocabAdded, vocabUpdated, sentenceUploaded, sentenceAdded, sentenceUpdated)
     }
 }

@@ -34,6 +34,6 @@ class GetReviewCardsUseCase @Inject constructor(
             }
             val totalWeight = baseWeight + daysSince
             List(totalWeight) { item }
-        }.shuffled()
+        }.shuffled().distinctBy { it.id }
     }
 }

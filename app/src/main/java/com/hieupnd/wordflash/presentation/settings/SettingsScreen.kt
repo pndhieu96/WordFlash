@@ -27,14 +27,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -42,6 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -52,7 +53,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,6 +78,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.hieupnd.wordflash.domain.model.DailyStats
+import com.hieupnd.wordflash.presentation.components.StreakCard
 import com.hieupnd.wordflash.presentation.review.ReviewViewModel
 import com.hieupnd.wordflash.presentation.stats.StatsViewModel
 import com.hieupnd.wordflash.presentation.sync.SyncViewModel
@@ -85,7 +92,8 @@ fun SettingsScreen(
     onBack: () -> Unit,
     syncViewModel: SyncViewModel = hiltViewModel(),
     reviewViewModel: ReviewViewModel = hiltViewModel(LocalContext.current as ComponentActivity),
-    statsViewModel: StatsViewModel = hiltViewModel()
+    statsViewModel: StatsViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
     val syncUiState by syncViewModel.uiState.collectAsStateWithLifecycle()
     val reviewUiState by reviewViewModel.uiState.collectAsStateWithLifecycle()
@@ -165,11 +173,15 @@ fun SettingsScreen(
                 }
             )
 
+            // AI section
+            SectionHeader("Cài đặt AI")
+            GeminiApiKeyCard(settingsViewModel = settingsViewModel)
+
             // Statistics section
             SectionHeader("Thống kê")
             StreakCard(
-                currentStreak = statsUiState.currentStreak,
-                longestStreak = statsUiState.longestStreak
+                currentStreak = reviewUiState.currentStreak,
+                longestStreak = reviewUiState.longestStreak
             )
             if (statsUiState.dailyStats.isNotEmpty()) {
                 ActivityChartCard(stats = statsUiState.dailyStats)
@@ -206,8 +218,11 @@ fun SettingsScreen(
             title = { Text("Đồng bộ thành công") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Từ vựng: +${result.vocabAdded} mới, cập nhật ${result.vocabUpdated}")
-                    Text("Câu: +${result.sentenceAdded} mới, cập nhật ${result.sentenceUpdated}")
+                    Text("Đã tải lên: ${result.vocabUploaded} từ vựng, ${result.sentenceUploaded} câu")
+                    if (result.vocabAdded > 0 || result.vocabUpdated > 0)
+                        Text("Từ vựng tải về: +${result.vocabAdded} mới, cập nhật ${result.vocabUpdated}")
+                    if (result.sentenceAdded > 0 || result.sentenceUpdated > 0)
+                        Text("Câu tải về: +${result.sentenceAdded} mới, cập nhật ${result.sentenceUpdated}")
                 }
             },
             confirmButton = {
@@ -307,6 +322,66 @@ private fun AccountSyncCard(
 }
 
 @Composable
+private fun GeminiApiKeyCard(settingsViewModel: SettingsViewModel) {
+    var apiKeyText by rememberSaveable { mutableStateOf(settingsViewModel.getStoredApiKey()) }
+    var keyVisible by remember { mutableStateOf(false) }
+    var saved by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = if (settingsViewModel.hasCustomKey()) "API key đã được cấu hình"
+                       else "Chưa có API key — tính năng Gemini sẽ không hoạt động",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (settingsViewModel.hasCustomKey()) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.error
+            )
+            OutlinedTextField(
+                value = apiKeyText,
+                onValueChange = { apiKeyText = it; saved = false },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Gemini API Key") },
+                placeholder = { Text("Nhập API key của bạn") },
+                singleLine = true,
+                visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                trailingIcon = {
+                    IconButton(onClick = { keyVisible = !keyVisible }) {
+                        Icon(
+                            if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (keyVisible) "Ẩn" else "Hiện"
+                        )
+                    }
+                }
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        settingsViewModel.saveApiKey(apiKeyText)
+                        saved = true
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(if (saved) "Đã lưu!" else "Lưu")
+                }
+                if (settingsViewModel.hasCustomKey()) {
+                    OutlinedButton(
+                        onClick = {
+                            settingsViewModel.saveApiKey("")
+                            apiKeyText = ""
+                            saved = false
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Xóa key")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun NotificationCard(
     notificationHour: Int,
     notificationMinute: Int,
@@ -341,41 +416,6 @@ private fun NotificationCard(
             }
             TextButton(onClick = onToggle) {
                 Text(if (notificationHour >= 0) "Tắt" else "Bật")
-            }
-        }
-    }
-}
-
-@Composable
-private fun StreakCard(currentStreak: Int, longestStreak: Int) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-    ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.LocalFireDepartment,
-                contentDescription = null,
-                tint = Color(0xFFFF6B35),
-                modifier = Modifier.size(40.dp)
-            )
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = "$currentStreak ngày liên tiếp",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Text(
-                    text = "Kỷ lục: $longestStreak ngày",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                )
             }
         }
     }

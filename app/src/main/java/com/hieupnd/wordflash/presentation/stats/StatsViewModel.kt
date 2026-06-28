@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hieupnd.wordflash.domain.usecase.stats.GetDailyStatsUseCase
 import com.hieupnd.wordflash.notification.DailyReminderWorker
-import com.hieupnd.wordflash.presentation.review.ReviewViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,8 +31,8 @@ class StatsViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             val prefs = context.getSharedPreferences(DailyReminderWorker.PREFS_NAME, Context.MODE_PRIVATE)
-            val currentStreak = prefs.getInt(ReviewViewModel.KEY_CURRENT_STREAK, 0)
-            val longestStreak = prefs.getInt(ReviewViewModel.KEY_LONGEST_STREAK, 0)
+            val currentStreak = prefs.getInt(DailyReminderWorker.KEY_CURRENT_STREAK, 0)
+            val longestStreak = prefs.getInt(DailyReminderWorker.KEY_LONGEST_STREAK, 0)
             val stats = getDailyStatsUseCase(days = 7)
             _uiState.update {
                 it.copy(

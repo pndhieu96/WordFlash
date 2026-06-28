@@ -23,5 +23,7 @@ class DailyReminderWorker(
     companion object {
         const val PREFS_NAME = "wordflash_prefs"
         const val KEY_LAST_STUDY_DATE = "last_study_date"
+        const val KEY_CURRENT_STREAK = "current_streak"
+        const val KEY_LONGEST_STREAK = "longest_streak"
     }
 }

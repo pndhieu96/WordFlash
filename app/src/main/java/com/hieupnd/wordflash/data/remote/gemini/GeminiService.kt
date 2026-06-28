@@ -3,26 +3,45 @@ package com.hieupnd.wordflash.data.remote.gemini
 import android.util.Log
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.QuotaExceededException
+import com.google.ai.client.generativeai.type.generationConfig
 import com.google.gson.Gson
+import com.hieupnd.wordflash.data.local.GeminiApiKeyStore
 import com.hieupnd.wordflash.domain.model.Example
 import com.hieupnd.wordflash.domain.model.GeminiSentenceInfo
 import com.hieupnd.wordflash.domain.model.GeminiWordInfo
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
-import javax.inject.Named
 import javax.inject.Singleton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 
 @Singleton
 class GeminiService @Inject constructor(
-    @Named("gemini_models") private val models: List<GenerativeModel>,
+    private val geminiKeyStore: GeminiApiKeyStore,
     private val gson: Gson
 ) {
     private val currentModelIndex = AtomicInteger(0)
+    private var cachedKey: String = ""
+    @Volatile private var cachedModels: List<GenerativeModel> = emptyList()
+
+    @Synchronized
+    private fun getModels(): List<GenerativeModel> {
+        val key = geminiKeyStore.getApiKey()
+        if (key != cachedKey || cachedModels.isEmpty()) {
+            cachedKey = key
+            val config = generationConfig {
+                responseMimeType = "application/json"
+                temperature = 0.2f
+            }
+            cachedModels = MODEL_NAMES.map { name -> GenerativeModel(name, key, config) }
+            currentModelIndex.set(0)
+        }
+        return cachedModels
+    }
 
     suspend fun getWordInfo(word: String): GeminiWordInfo {
         val prompt = buildPrompt(word)
+        val models = getModels()
         val modelCount = models.size
         val startIndex = currentModelIndex.get()
         var lastException: Exception? = null
@@ -52,8 +71,7 @@ class GeminiService @Inject constructor(
                     if (e is CancellationException) throw e
                     lastException = e
                     Log.e(TAG, "Non-rate-limit error on model[$index], retry=$retry", e)
-                    
-                    // If model is not found (404), no point in retrying this model
+
                     if (e.message?.contains("404") == true) {
                         Log.e(TAG, "Model[$index] returned 404, rotating immediately")
                         break
@@ -75,6 +93,7 @@ class GeminiService @Inject constructor(
 
     suspend fun getSentenceStructureInfo(sentence: String): GeminiSentenceInfo {
         val prompt = buildSentencePrompt(sentence)
+        val models = getModels()
         val modelCount = models.size
         val startIndex = currentModelIndex.get()
         var lastException: Exception? = null
@@ -175,6 +194,12 @@ class GeminiService @Inject constructor(
         private const val TAG = "GeminiService"
         private const val MAX_RETRIES_PER_MODEL = 3
         private val RETRY_DELAYS = listOf(1000L, 2000L, 4000L)
+        private val MODEL_NAMES = listOf(
+            "gemini-3.5-flash",
+            "gemini-3.1-flash-Lite",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite"
+        )
     }
 }
 

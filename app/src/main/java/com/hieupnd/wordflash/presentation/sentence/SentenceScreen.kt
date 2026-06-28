@@ -19,9 +19,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -46,7 +49,7 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -55,10 +58,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -77,6 +83,8 @@ fun SentenceScreen(
     viewModel: SentenceViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
@@ -87,7 +95,16 @@ fun SentenceScreen(
 
     Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
         TopAppBar(
-            title = { Text("Cấu Trúc Câu") },
+            title = {
+                Text(
+                    text = "Cấu Trúc Câu",
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures(onDoubleTap = {
+                            coroutineScope.launch { listState.animateScrollToItem(0) }
+                        })
+                    }
+                )
+            },
             actions = {
                 IconButton(onClick = onNavigateToSettings) {
                     Icon(Icons.Default.Settings, contentDescription = "Cài đặt")
@@ -95,7 +112,7 @@ fun SentenceScreen(
             }
         )
 
-        TabRow(selectedTabIndex = uiState.selectedTab) {
+        SecondaryTabRow(selectedTabIndex = uiState.selectedTab) {
             Tab(
                 selected = uiState.selectedTab == 0,
                 onClick = { viewModel.onTabSelected(0) },
@@ -115,7 +132,8 @@ fun SentenceScreen(
                 onCollectionQueryChange = viewModel::onCollectionQueryChange,
                 onUpdateLevel = viewModel::updateMemorizationLevel,
                 onEdit = viewModel::startEdit,
-                onDelete = viewModel::requestDelete
+                onDelete = viewModel::requestDelete,
+                listState = listState
             )
             1 -> CreateSentenceTab(uiState = uiState, viewModel = viewModel)
         }
@@ -281,7 +299,7 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
-            TabRow(selectedTabIndex = uiState.selectedComponentTab) {
+            SecondaryTabRow(selectedTabIndex = uiState.selectedComponentTab) {
                 Tab(
                     selected = uiState.selectedComponentTab == 0,
                     onClick = { viewModel.onComponentTabSelected(0) },
@@ -481,7 +499,8 @@ private fun SentenceCollectionTab(
     onCollectionQueryChange: (String) -> Unit,
     onUpdateLevel: (String, Int) -> Unit,
     onEdit: (SentenceCard) -> Unit,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
+    listState: LazyListState = rememberLazyListState()
 ) {
     val filteredCards = remember(cards, collectionQuery) {
         if (collectionQuery.isBlank()) cards
@@ -539,7 +558,7 @@ private fun SentenceCollectionTab(
             return@Column
         }
 
-    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(state = listState, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(filteredCards, key = { it.id }) { card ->
             Card(
                 modifier = Modifier

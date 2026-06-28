@@ -21,8 +21,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -60,11 +63,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -94,6 +100,8 @@ fun VocabularyScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     val tts = remember {
         var instance: TextToSpeech? = null
@@ -108,7 +116,16 @@ fun VocabularyScreen(
 
     Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
         TopAppBar(
-            title = { Text("WordFlash") },
+            title = {
+                Text(
+                    text = "WordFlash",
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures(onDoubleTap = {
+                            coroutineScope.launch { listState.animateScrollToItem(0) }
+                        })
+                    }
+                )
+            },
             actions = {
                 IconButton(onClick = onNavigateToSettings) {
                     Icon(Icons.Default.Settings, contentDescription = "Cài đặt")
@@ -137,7 +154,8 @@ fun VocabularyScreen(
                 onSpeak = { word -> tts?.speak(word, TextToSpeech.QUEUE_FLUSH, null, null) },
                 onUpdateLevel = viewModel::updateMemorizationLevel,
                 onEdit = viewModel::startEdit,
-                onDelete = viewModel::requestDelete
+                onDelete = viewModel::requestDelete,
+                listState = listState
             )
             1 -> SearchTab(
                 uiState = uiState,
@@ -894,7 +912,8 @@ private fun CollectionTab(
     onSpeak: (String) -> Unit,
     onUpdateLevel: (String, Int) -> Unit,
     onEdit: (VocabularyCard) -> Unit,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
+    listState: LazyListState = rememberLazyListState()
 ) {
     val filteredCards = remember(cards, collectionQuery) {
         if (collectionQuery.isBlank()) cards
@@ -947,6 +966,7 @@ private fun CollectionTab(
         }
 
         LazyColumn(
+            state = listState,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
