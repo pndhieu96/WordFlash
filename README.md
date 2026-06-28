@@ -120,15 +120,16 @@
 |-----------|----------|
 | **Tra từ điển** | Dictionary API — IPA, từ loại, định nghĩa, phát âm TTS |
 | **Gợi ý từ** | Datamuse API khi không tìm thấy từ trong từ điển |
-| **Gemini AI** | Tự động dịch nghĩa VI, sinh câu ví dụ song ngữ, mô tả cấu trúc câu; tự động kích hoạt khi nhập từ thủ công |
-| **Spaced Repetition** | Thuật toán trọng số theo mức độ ghi nhớ + số ngày kể từ lần ôn cuối |
+| **Gemini AI** | Tự động dịch nghĩa VI, sinh câu ví dụ song ngữ, mô tả cấu trúc câu; nhập API key trực tiếp trong Cài đặt |
+| **Spaced Repetition** | Thuật toán trọng số theo mức độ ghi nhớ + số ngày kể từ lần ôn cuối; mỗi thẻ chỉ xuất hiện 1 lần/phiên |
 | **Sentence Builder** | 12 word types + 11 sentence roles + custom; tạo cấu trúc bằng chip trực quan |
 | **Nhắc nhở hàng ngày** | WorkManager — thông báo đẩy nhắc học, nhấn thông báo mở thẳng màn hình Ôn tập |
 | **Streak** | Đếm số ngày ôn tập liên tục, lưu kỷ lục dài nhất |
 | **Thống kê** | Biểu đồ hoạt động 7 ngày: từ thêm / câu thêm / lượt ôn |
 | **Firebase Sync** | Google Sign-In + Firestore đồng bộ flashcard lên đám mây |
-| **Cài đặt tập trung** | Một màn hình Cài đặt gộp tài khoản, thông báo và thống kê |
-| **Giới hạn phiên học** | 20 từ vựng + 5 cấu trúc câu mỗi ngày để tránh quá tải |
+| **Cài đặt tập trung** | Một màn hình Cài đặt gộp tài khoản, thông báo, thống kê và quản lý Gemini API key |
+| **Giới hạn phiên học** | 20 từ vựng + 5 cấu trúc câu mỗi phiên để tránh quá tải |
+| **Scroll to top** | Double-tap vào tiêu đề màn hình để cuộn nhanh lên đầu danh sách |
 
 ---
 
@@ -153,15 +154,17 @@
 ## Cài Đặt & Chạy
 
 1. Clone repo
-2. Tạo file `local.properties` và thêm API key:
-   ```
-   GEMINI_API_KEY=<your_gemini_api_key>
-   ```
-3. Kết nối thiết bị Android hoặc khởi động emulator
-4. Chạy:
+2. Kết nối thiết bị Android hoặc khởi động emulator
+3. Chạy:
    ```bash
    ./gradlew installDebug
    ```
+4. Mở app → Cài đặt → **Cài đặt AI** → nhập Gemini API key của bạn
+
+> **Tuỳ chọn:** Thay vì nhập key trong app, có thể thêm vào `local.properties` trước khi build:
+> ```
+> GEMINI_API_KEY=<your_gemini_api_key>
+> ```
 
 ---
 
