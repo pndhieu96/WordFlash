@@ -1,5 +1,6 @@
 package com.hieupnd.wordflash.presentation.review
 
+import com.hieupnd.wordflash.data.local.ReviewSettingsStore
 import com.hieupnd.wordflash.domain.model.ReviewItem
 
 data class ReviewUiState(
@@ -12,7 +13,9 @@ data class ReviewUiState(
     val notificationHour: Int = -1,
     val notificationMinute: Int = 0,
     val currentStreak: Int = 0,
-    val longestStreak: Int = 0
+    val longestStreak: Int = 0,
+    val vocabSessionSize: Int = ReviewSettingsStore.DEFAULT_VOCAB_SIZE,
+    val sentenceSessionSize: Int = ReviewSettingsStore.DEFAULT_SENTENCE_SIZE
 ) {
     val currentItem: ReviewItem? get() = reviewItems.getOrNull(currentIndex)
     val progress: Float get() = (currentIndex + 1).toFloat() / totalItems.coerceAtLeast(1)

@@ -71,9 +71,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hieupnd.wordflash.domain.model.MemorizationLevel
+import com.hieupnd.wordflash.presentation.components.memorizationColors
+import com.hieupnd.wordflash.presentation.components.memorizationLabelRes
 import com.hieupnd.wordflash.domain.model.Example
 import com.hieupnd.wordflash.domain.model.SentenceCard
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.hieupnd.wordflash.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -97,7 +102,7 @@ fun SentenceScreen(
         TopAppBar(
             title = {
                 Text(
-                    text = "Cấu Trúc Câu",
+                    text = stringResource(R.string.title_sentence_structure),
                     modifier = Modifier.pointerInput(Unit) {
                         detectTapGestures(onDoubleTap = {
                             coroutineScope.launch { listState.animateScrollToItem(0) }
@@ -107,7 +112,7 @@ fun SentenceScreen(
             },
             actions = {
                 IconButton(onClick = onNavigateToSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = "Cài đặt")
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.title_settings))
                 }
             }
         )
@@ -116,12 +121,12 @@ fun SentenceScreen(
             Tab(
                 selected = uiState.selectedTab == 0,
                 onClick = { viewModel.onTabSelected(0) },
-                text = { Text("Bộ sưu tập (${uiState.savedCards.size})") }
+                text = { Text(stringResource(R.string.tab_collection_with_count, uiState.savedCards.size)) }
             )
             Tab(
                 selected = uiState.selectedTab == 1,
                 onClick = { viewModel.onTabSelected(1) },
-                text = { Text("Tạo cấu trúc") }
+                text = { Text(stringResource(R.string.tab_create_structure)) }
             )
         }
 
@@ -149,7 +154,7 @@ fun SentenceScreen(
         val scrollState = rememberScrollState()
         AlertDialog(
             onDismissRequest = viewModel::cancelEdit,
-            title = { Text("Sửa cấu trúc") },
+            title = { Text(stringResource(R.string.sentence_edit_title)) },
             text = {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -158,20 +163,20 @@ fun SentenceScreen(
                     OutlinedTextField(
                         value = editSentence,
                         onValueChange = { editSentence = it },
-                        label = { Text("Cấu trúc câu") },
+                        label = { Text(stringResource(R.string.sentence_structure)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = editDescription,
                         onValueChange = { editDescription = it },
-                        label = { Text("Mô tả / ghi chú") },
+                        label = { Text(stringResource(R.string.sentence_description_note)) },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2
                     )
                     HorizontalDivider()
                     Text(
-                        "Ví dụ liên quan",
+                        stringResource(R.string.sentence_related_examples),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -199,7 +204,7 @@ fun SentenceScreen(
                                     onClick = { editExamples = editExamples.toMutableList().also { it.removeAt(index) } },
                                     modifier = Modifier.size(32.dp)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -207,7 +212,7 @@ fun SentenceScreen(
                     OutlinedTextField(
                         value = newExampleInput,
                         onValueChange = { newExampleInput = it },
-                        label = { Text("Câu tiếng Anh") },
+                        label = { Text(stringResource(R.string.vocab_example_en_short)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
@@ -220,7 +225,7 @@ fun SentenceScreen(
                         OutlinedTextField(
                             value = newExampleViInput,
                             onValueChange = { newExampleViInput = it },
-                            label = { Text("Nghĩa tiếng Việt (tuỳ chọn)") },
+                            label = { Text(stringResource(R.string.vocab_vi_meaning_optional)) },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -239,7 +244,7 @@ fun SentenceScreen(
                                 newExampleViInput = ""
                             }
                         }) {
-                            Icon(Icons.Default.Add, contentDescription = "Thêm ví dụ")
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.vocab_add_example_short))
                         }
                     }
                 }
@@ -252,11 +257,11 @@ fun SentenceScreen(
                         relatedExamples = editExamples
                     ))
                 }) {
-                    Text("Lưu")
+                    Text(stringResource(R.string.action_save))
                 }
             },
             dismissButton = {
-                TextButton(onClick = viewModel::cancelEdit) { Text("Huỷ") }
+                TextButton(onClick = viewModel::cancelEdit) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -265,13 +270,13 @@ fun SentenceScreen(
     if (uiState.deleteConfirmId != null) {
         AlertDialog(
             onDismissRequest = viewModel::cancelDelete,
-            title = { Text("Xác nhận xoá") },
-            text = { Text("Bạn chắc chắn muốn xoá cấu trúc câu này?") },
+            title = { Text(stringResource(R.string.vocab_confirm_delete_title)) },
+            text = { Text(stringResource(R.string.sentence_confirm_delete_message)) },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmDelete) { Text("Xoá") }
+                TextButton(onClick = viewModel::confirmDelete) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = viewModel::cancelDelete) { Text("Huỷ") }
+                TextButton(onClick = viewModel::cancelDelete) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -289,12 +294,12 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
     ) {
         item {
             Text(
-                "Chọn thành phần câu",
+                stringResource(R.string.sentence_choose_parts),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                "Chọn tab → nhấn chip để xem mô tả → nhấn + để thêm vào cấu trúc",
+                stringResource(R.string.sentence_choose_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -303,17 +308,17 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
                 Tab(
                     selected = uiState.selectedComponentTab == 0,
                     onClick = { viewModel.onComponentTabSelected(0) },
-                    text = { Text("Loại từ") }
+                    text = { Text(stringResource(R.string.sentence_tab_word_type)) }
                 )
                 Tab(
                     selected = uiState.selectedComponentTab == 1,
                     onClick = { viewModel.onComponentTabSelected(1) },
-                    text = { Text("Thành phần") }
+                    text = { Text(stringResource(R.string.sentence_tab_part)) }
                 )
                 Tab(
                     selected = uiState.selectedComponentTab == 2,
                     onClick = { viewModel.onComponentTabSelected(2) },
-                    text = { Text("Tùy chỉnh") }
+                    text = { Text(stringResource(R.string.sentence_tab_custom)) }
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -342,14 +347,14 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
 
         item {
             Text(
-                "Cấu trúc đang xây dựng",
+                stringResource(R.string.sentence_building),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(8.dp))
             if (uiState.structureItems.isEmpty()) {
                 Text(
-                    "Chưa có thành phần nào. Chọn từ các tab bên trên để thêm.",
+                    stringResource(R.string.sentence_empty_parts),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontStyle = FontStyle.Italic
@@ -361,14 +366,15 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
                             selected = false,
                             onClick = {},
                             label = {
-                                Text(if (item.viName.isNotEmpty()) "${item.displayName} (${item.viName})" else item.displayName)
+                                val localName = item.viNameRes?.let { stringResource(it) } ?: item.viName
+                                Text(if (localName.isNotEmpty()) "${item.displayName} ($localName)" else item.displayName)
                             },
                             trailingIcon = {
                                 IconButton(
                                     onClick = { viewModel.removeStructureItemAt(index) },
                                     modifier = Modifier.size(16.dp)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(12.dp))
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(12.dp))
                                 }
                             }
                         )
@@ -397,13 +403,13 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Mô tả & ví dụ", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.sentence_description_examples), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 if (uiState.structureItems.isNotEmpty()) {
                     if (uiState.isLoadingGemini) {
                         androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(20.dp))
                     } else {
                         TextButton(onClick = viewModel::generateFromGemini) {
-                            Text("Tự động điền từ Gemini")
+                            Text(stringResource(R.string.sentence_autofill_gemini))
                         }
                     }
                 }
@@ -419,19 +425,19 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
             OutlinedTextField(
                 value = uiState.description,
                 onValueChange = viewModel::onDescriptionChange,
-                label = { Text("Mô tả cách dùng & ghi chú") },
+                label = { Text(stringResource(R.string.sentence_usage_note)) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2
             )
         }
 
         item {
-            Text("Ví dụ liên quan", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.sentence_related_examples), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Spacer(modifier = Modifier.height(4.dp))
             OutlinedTextField(
                 value = uiState.newExample,
                 onValueChange = viewModel::onNewExampleChange,
-                label = { Text("Câu tiếng Anh") },
+                label = { Text(stringResource(R.string.vocab_example_en_short)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
@@ -441,7 +447,7 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
                 OutlinedTextField(
                     value = uiState.newExampleVi,
                     onValueChange = viewModel::onNewExampleViChange,
-                    label = { Text("Nghĩa tiếng Việt (tuỳ chọn)") },
+                    label = { Text(stringResource(R.string.vocab_vi_meaning_optional)) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -452,7 +458,7 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(onClick = { viewModel.addExample(); focusManager.clearFocus() }) {
-                    Icon(Icons.Default.Add, contentDescription = "Thêm ví dụ")
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.vocab_add_example_short))
                 }
             }
         }
@@ -466,7 +472,7 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
                     }
                 }
                 IconButton(onClick = { viewModel.removeExampleAt(index) }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Xóa", modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -484,7 +490,7 @@ private fun CreateSentenceTab(uiState: SentenceUiState, viewModel: SentenceViewM
                 onClick = viewModel::saveSentence,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (uiState.saveSuccess) "Đã lưu!" else "Lưu cấu trúc")
+                Text(stringResource(if (uiState.saveSuccess) R.string.action_saved_exclaim else R.string.sentence_save_structure))
             }
         }
 
@@ -510,18 +516,11 @@ private fun SentenceCollectionTab(
         }
     }
 
-    val levelLabels = listOf("Không nhớ", "Hơi nhớ", "Đã nhớ")
-    val levelColors = listOf(
-        MaterialTheme.colorScheme.errorContainer,
-        MaterialTheme.colorScheme.tertiaryContainer,
-        MaterialTheme.colorScheme.primaryContainer
-    )
-
     Column(modifier = Modifier.fillMaxSize()) {
         OutlinedTextField(
             value = collectionQuery,
             onValueChange = onCollectionQueryChange,
-            placeholder = { Text("Tìm trong bộ sưu tập...") },
+            placeholder = { Text(stringResource(R.string.vocab_search_collection_hint)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -530,7 +529,7 @@ private fun SentenceCollectionTab(
             trailingIcon = {
                 if (collectionQuery.isNotEmpty()) {
                     IconButton(onClick = { onCollectionQueryChange("") }) {
-                        Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -539,7 +538,7 @@ private fun SentenceCollectionTab(
         if (cards.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "Chưa có cấu trúc nào.\nHãy tạo ở tab Tạo cấu trúc!",
+                    text = stringResource(R.string.sentence_collection_empty),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -550,7 +549,7 @@ private fun SentenceCollectionTab(
         if (filteredCards.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "Không tìm thấy cấu trúc nào phù hợp.",
+                    text = stringResource(R.string.sentence_no_match),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -565,7 +564,7 @@ private fun SentenceCollectionTab(
                     .fillMaxWidth()
                     .border(
                         width = 2.dp,
-                        color = levelColors.getOrElse(card.memorizationLevel) { MaterialTheme.colorScheme.outline },
+                        color = memorizationColors.getOrElse(card.memorizationLevel) { MaterialTheme.colorScheme.outline },
                         shape = MaterialTheme.shapes.medium
                     )
             ) {
@@ -578,10 +577,10 @@ private fun SentenceCollectionTab(
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(onClick = { onEdit(card) }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Sửa", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.action_edit), modifier = Modifier.size(20.dp))
                         }
                         IconButton(onClick = { onDelete(card.id) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Xóa", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(20.dp))
                         }
                     }
                     if (card.description.isNotEmpty()) {
@@ -599,8 +598,8 @@ private fun SentenceCollectionTab(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     AssistChip(
-                        onClick = { onUpdateLevel(card.id, (card.memorizationLevel + 1) % 3) },
-                        label = { Text(levelLabels.getOrElse(card.memorizationLevel) { "Không nhớ" }, style = MaterialTheme.typography.labelSmall) }
+                        onClick = { onUpdateLevel(card.id, (card.memorizationLevel + 1) % MemorizationLevel.COUNT) },
+                        label = { Text(stringResource(memorizationLabelRes.getOrElse(card.memorizationLevel) { memorizationLabelRes[0] }), style = MaterialTheme.typography.labelSmall) }
                     )
                 }
             }
@@ -650,27 +649,27 @@ private fun WordTypeTabContent(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    "(${type.viName})",
+                                    "(${stringResource(type.viNameRes)})",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                type.description,
+                                stringResource(type.descriptionRes),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                type.positionNote,
+                                stringResource(type.positionNoteRes),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.secondary,
                                 fontStyle = FontStyle.Italic
                             )
                         }
                         IconButton(onClick = { onAdd(key) }) {
-                            Icon(Icons.Default.Add, contentDescription = "Thêm")
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.action_add))
                         }
                     }
                 }
@@ -720,20 +719,20 @@ private fun SentenceRoleTabContent(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    "(${role.viName})",
+                                    "(${stringResource(role.viNameRes)})",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                role.description,
+                                stringResource(role.descriptionRes),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         IconButton(onClick = { onAdd(key) }) {
-                            Icon(Icons.Default.Add, contentDescription = "Thêm")
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.action_add))
                         }
                     }
                 }
@@ -755,8 +754,8 @@ private fun CustomTabContent(
         OutlinedTextField(
             value = nameInput,
             onValueChange = onNameChange,
-            label = { Text("Tên thành phần") },
-            placeholder = { Text("VD: Phrasal Verb, Cụm danh từ...") },
+            label = { Text(stringResource(R.string.sentence_part_name)) },
+            placeholder = { Text(stringResource(R.string.sentence_part_name_hint)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
@@ -764,7 +763,7 @@ private fun CustomTabContent(
         OutlinedTextField(
             value = descInput,
             onValueChange = onDescChange,
-            label = { Text("Mô tả (tuỳ chọn)") },
+            label = { Text(stringResource(R.string.sentence_part_description_optional)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -783,7 +782,7 @@ private fun CustomTabContent(
         ) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("Thêm vào cấu trúc")
+            Text(stringResource(R.string.sentence_add_to_structure))
         }
     }
 }

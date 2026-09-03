@@ -17,10 +17,10 @@ object NotificationHelper {
     fun createChannel(context: Context) {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Nhắc nhở ôn tập",
+            context.getString(R.string.notif_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = "Thông báo nhắc nhở ôn tập từ vựng hàng ngày"
+            description = context.getString(R.string.notif_channel_desc)
         }
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)
@@ -38,8 +38,8 @@ object NotificationHelper {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Nhắc nhở ôn tập")
-            .setContentText("Hôm nay bạn chưa ôn tập từ vựng. Hãy học ngay!")
+            .setContentTitle(context.getString(R.string.notif_title))
+            .setContentText(context.getString(R.string.notif_body))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)

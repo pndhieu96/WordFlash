@@ -1,57 +1,71 @@
 package com.hieupnd.wordflash.presentation.sentence
 
+import androidx.annotation.StringRes
+import com.hieupnd.wordflash.R
+
 data class SentenceRole(
     val key: String,
     val enName: String,
-    val viName: String,
-    val description: String
+    @StringRes val viNameRes: Int,
+    @StringRes val descriptionRes: Int
 )
 
 object EnglishSentenceRoles {
     val ALL = listOf(
         SentenceRole(
-            "subject", "Subject", "Chủ ngữ",
-            "Người, vật hoặc ý niệm thực hiện hành động. Thường đứng đầu câu. VD: The cat runs. / She sings."
+            "subject", "Subject",
+            R.string.role_subject_name,
+            R.string.role_subject_desc
         ),
         SentenceRole(
-            "predicate", "Predicate", "Vị ngữ",
-            "Phần câu chứa động từ, mô tả hành động hoặc trạng thái của chủ ngữ. VD: runs quickly / is very happy."
+            "predicate", "Predicate",
+            R.string.role_predicate_name,
+            R.string.role_predicate_desc
         ),
         SentenceRole(
-            "direct_object", "Direct Object", "Tân ngữ trực tiếp",
-            "Người/vật nhận trực tiếp hành động, trả lời câu hỏi 'What?' hoặc 'Who?'. VD: She reads a book."
+            "direct_object", "Direct Object",
+            R.string.role_direct_object_name,
+            R.string.role_direct_object_desc
         ),
         SentenceRole(
-            "indirect_object", "Indirect Object", "Tân ngữ gián tiếp",
-            "Người/vật được hưởng lợi, thường đứng trước tân ngữ trực tiếp. VD: She gave him a gift."
+            "indirect_object", "Indirect Object",
+            R.string.role_indirect_object_name,
+            R.string.role_indirect_object_desc
         ),
         SentenceRole(
-            "complement", "Complement", "Bổ ngữ",
-            "Bổ sung ý nghĩa cho chủ ngữ/tân ngữ qua linking verb (be, seem, become). VD: She is a teacher. / He looks tired."
+            "complement", "Complement",
+            R.string.role_complement_name,
+            R.string.role_complement_desc
         ),
         SentenceRole(
-            "adverbial", "Adverbial", "Trạng ngữ",
-            "Cung cấp thông tin về thời gian, nơi chốn, cách thức, lý do. Vị trí linh hoạt. VD: In the morning, she runs."
+            "adverbial", "Adverbial",
+            R.string.role_adverbial_name,
+            R.string.role_adverbial_desc
         ),
         SentenceRole(
-            "modifier", "Modifier", "Định ngữ",
-            "Bổ nghĩa cho danh từ, đứng trước hoặc sau danh từ đó. VD: the big red dog / a cup of coffee."
+            "modifier", "Modifier",
+            R.string.role_modifier_name,
+            R.string.role_modifier_desc
         ),
         SentenceRole(
-            "appositive", "Appositive", "Đồng vị ngữ",
-            "Cụm từ đứng cạnh và giải thích thêm cho danh từ đứng trước. VD: My friend, a doctor, arrived."
+            "appositive", "Appositive",
+            R.string.role_appositive_name,
+            R.string.role_appositive_desc
         ),
         SentenceRole(
-            "relative_clause", "Relative Clause", "Mệnh đề quan hệ",
-            "Mệnh đề bắt đầu bằng who, which, that bổ nghĩa cho danh từ. VD: The book that I read was great."
+            "relative_clause", "Relative Clause",
+            R.string.role_relative_clause_name,
+            R.string.role_relative_clause_desc
         ),
         SentenceRole(
-            "noun_clause", "Noun Clause", "Mệnh đề danh từ",
-            "Mệnh đề giữ chức năng của danh từ (chủ ngữ hoặc tân ngữ). VD: What she said was true."
+            "noun_clause", "Noun Clause",
+            R.string.role_noun_clause_name,
+            R.string.role_noun_clause_desc
         ),
         SentenceRole(
-            "adverb_clause", "Adverb Clause", "Mệnh đề trạng từ",
-            "Mệnh đề bắt đầu bằng because, when, if, although. VD: Because it rained, we stayed home."
+            "adverb_clause", "Adverb Clause",
+            R.string.role_adverb_clause_name,
+            R.string.role_adverb_clause_desc
         ),
     )
 }

@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.hieupnd.wordflash.data.local.AppDatabase
 import com.hieupnd.wordflash.data.local.MIGRATION_1_2
 import com.hieupnd.wordflash.data.local.MIGRATION_2_3
+import com.hieupnd.wordflash.data.local.MIGRATION_3_4
 import com.hieupnd.wordflash.data.local.dao.SentenceCardDao
 import com.hieupnd.wordflash.data.local.dao.VocabularyCardDao
 import dagger.Module
@@ -22,7 +23,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "wordflash.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
 
     @Provides

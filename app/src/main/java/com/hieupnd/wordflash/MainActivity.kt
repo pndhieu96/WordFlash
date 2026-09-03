@@ -1,11 +1,13 @@
 package com.hieupnd.wordflash
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
+import com.hieupnd.wordflash.data.local.LanguageStore
 import com.hieupnd.wordflash.notification.NotificationHelper
 import com.hieupnd.wordflash.presentation.navigation.AppNavigation
 import com.hieupnd.wordflash.presentation.navigation.Screen
@@ -16,6 +18,10 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val _navigateToRoute = mutableStateOf<String?>(null)
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LanguageStore.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

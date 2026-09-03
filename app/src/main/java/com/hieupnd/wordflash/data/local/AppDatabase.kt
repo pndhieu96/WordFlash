@@ -27,9 +27,20 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Giãn thang 3 mức cũ (0,1,2) sang thang 5 mức mới: 0→0, 1→2, 2→4.
+        // Thứ tự quan trọng: đổi 2 trước 1, nếu không các dòng vừa thành 2 sẽ bị đổi tiếp.
+        listOf("vocabulary_cards", "sentence_cards").forEach { table ->
+            db.execSQL("UPDATE $table SET memorizationLevel = 4 WHERE memorizationLevel = 2")
+            db.execSQL("UPDATE $table SET memorizationLevel = 2 WHERE memorizationLevel = 1")
+        }
+    }
+}
+
 @Database(
     entities = [VocabularyCardEntity::class, SentenceCardEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

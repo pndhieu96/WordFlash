@@ -1,74 +1,89 @@
 package com.hieupnd.wordflash.presentation.sentence
 
+import androidx.annotation.StringRes
+import com.hieupnd.wordflash.R
+
 data class WordType(
     val key: String,
     val enName: String,
-    val viName: String,
-    val description: String,
-    val positionNote: String
+    @StringRes val viNameRes: Int,
+    @StringRes val descriptionRes: Int,
+    @StringRes val positionNoteRes: Int
 )
 
 object EnglishWordTypes {
     val ALL = listOf(
         WordType(
-            "noun", "Noun", "Danh từ",
-            "Người, vật, nơi chốn hoặc ý tưởng. VD: dog, city, love",
-            "Vị trí: Đầu câu (chủ ngữ) hoặc sau động từ (tân ngữ). VD: The dog runs. / I love dogs."
+            "noun", "Noun",
+            R.string.type_noun_name,
+            R.string.type_noun_desc,
+            R.string.type_noun_pos
         ),
         WordType(
-            "verb", "Verb", "Động từ",
-            "Hành động hoặc trạng thái. VD: run, is, think",
-            "Vị trí: Sau chủ ngữ, là trung tâm của câu. VD: She runs. / He is happy."
+            "verb", "Verb",
+            R.string.type_verb_name,
+            R.string.type_verb_desc,
+            R.string.type_verb_pos
         ),
         WordType(
-            "adjective", "Adjective", "Tính từ",
-            "Mô tả tính chất của danh từ. VD: big, happy, red",
-            "Vị trí: Trước danh từ (big dog) hoặc sau động từ 'be' (He is big)."
+            "adjective", "Adjective",
+            R.string.type_adjective_name,
+            R.string.type_adjective_desc,
+            R.string.type_adjective_pos
         ),
         WordType(
-            "adverb", "Adverb", "Trạng từ",
-            "Bổ nghĩa cho động từ, tính từ hoặc câu. VD: quickly, very, often",
-            "Vị trí: Linh hoạt — trước/sau động từ (runs quickly), trước tính từ (very big)."
+            "adverb", "Adverb",
+            R.string.type_adverb_name,
+            R.string.type_adverb_desc,
+            R.string.type_adverb_pos
         ),
         WordType(
-            "pronoun", "Pronoun", "Đại từ",
-            "Thay thế danh từ đã đề cập. VD: he, they, it, someone",
-            "Vị trí: Tương tự danh từ — đầu câu (chủ ngữ) hoặc sau động từ (tân ngữ). VD: She runs."
+            "pronoun", "Pronoun",
+            R.string.type_pronoun_name,
+            R.string.type_pronoun_desc,
+            R.string.type_pronoun_pos
         ),
         WordType(
-            "preposition", "Preposition", "Giới từ",
-            "Chỉ mối quan hệ vị trí, thời gian, cách thức. VD: in, on, after, with",
-            "Vị trí: Trước danh từ, tạo thành cụm giới từ. VD: in the morning / at the park."
+            "preposition", "Preposition",
+            R.string.type_preposition_name,
+            R.string.type_preposition_desc,
+            R.string.type_preposition_pos
         ),
         WordType(
-            "conjunction", "Conjunction", "Liên từ",
-            "Nối từ, cụm từ hoặc mệnh đề. VD: and, but, because, although",
-            "Vị trí: Giữa hai thành phần cần nối. VD: I run and she walks. / I stayed because it rained."
+            "conjunction", "Conjunction",
+            R.string.type_conjunction_name,
+            R.string.type_conjunction_desc,
+            R.string.type_conjunction_pos
         ),
         WordType(
-            "article", "Article", "Mạo từ",
-            "Xác định danh từ là xác định (the) hay không xác định (a/an). VD: a, an, the",
-            "Vị trí: Ngay trước danh từ hoặc trước tính từ + danh từ. VD: the dog / a big dog."
+            "article", "Article",
+            R.string.type_article_name,
+            R.string.type_article_desc,
+            R.string.type_article_pos
         ),
         WordType(
-            "determiner", "Determiner", "Từ hạn định",
-            "Đứng trước danh từ để giới hạn hoặc xác định nghĩa. VD: this, some, every, my",
-            "Vị trí: Trước danh từ (thay thế hoặc bổ sung cho mạo từ). VD: this book / every day."
+            "determiner", "Determiner",
+            R.string.type_determiner_name,
+            R.string.type_determiner_desc,
+            R.string.type_determiner_pos
         ),
         WordType(
-            "numeral", "Numeral", "Số từ",
-            "Chỉ số lượng hoặc thứ tự. VD: one, three, first, twice",
-            "Vị trí: Trước danh từ (three dogs) hoặc sau động từ (He arrived first)."
+            "numeral", "Numeral",
+            R.string.type_numeral_name,
+            R.string.type_numeral_desc,
+            R.string.type_numeral_pos
         ),
         WordType(
-            "interjection", "Interjection", "Thán từ",
-            "Biểu đạt cảm xúc hoặc phản ứng tức thì. VD: wow, oops, hey, oh",
-            "Vị trí: Đứng độc lập đầu câu, thường cách câu chính bằng dấu phẩy hoặc chấm than. VD: Wow, that's great!"
+            "interjection", "Interjection",
+            R.string.type_interjection_name,
+            R.string.type_interjection_desc,
+            R.string.type_interjection_pos
         ),
         WordType(
-            "particle", "Particle", "Tiểu từ",
-            "Bổ nghĩa cho động từ trong phrasal verb, thay đổi nghĩa hoàn toàn. VD: up, off, out, on",
-            "Vị trí: Sau động từ trong phrasal verb. VD: give up / turn off / run out of."
+            "particle", "Particle",
+            R.string.type_particle_name,
+            R.string.type_particle_desc,
+            R.string.type_particle_pos
         ),
     )
 }

@@ -26,5 +26,6 @@ data class VocabularyUiState(
     val collectionQuery: String = "",
     val geminiError: String? = null,
     val isManualEntry: Boolean = false,
-    val manualWord: String = ""
+    val manualWord: String = "",
+    val highlightCardId: String? = null
 )

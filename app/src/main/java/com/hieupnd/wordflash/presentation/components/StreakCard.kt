@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.hieupnd.wordflash.R
 
 @Composable
 fun StreakCard(currentStreak: Int, longestStreak: Int) {
@@ -42,13 +44,13 @@ fun StreakCard(currentStreak: Int, longestStreak: Int) {
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "$currentStreak ngày liên tiếp",
+                    text = stringResource(R.string.streak_days, currentStreak),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    text = "Kỷ lục: $longestStreak ngày",
+                    text = stringResource(R.string.streak_record, longestStreak),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )

@@ -1,6 +1,8 @@
 package com.hieupnd.wordflash.presentation.vocabulary
 
 import android.speech.tts.TextToSpeech
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,6 +72,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -85,10 +88,15 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.ui.layout.ContentScale
 import com.hieupnd.wordflash.domain.model.Example
+import com.hieupnd.wordflash.domain.model.MemorizationLevel
 import com.hieupnd.wordflash.domain.model.VocabularyCard
 import com.hieupnd.wordflash.domain.model.WordMeaning
+import com.hieupnd.wordflash.presentation.components.memorizationColors
+import com.hieupnd.wordflash.presentation.components.memorizationLabelRes
 import com.hieupnd.wordflash.presentation.components.WordFlashAsyncImage
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.hieupnd.wordflash.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,7 +136,7 @@ fun VocabularyScreen(
             },
             actions = {
                 IconButton(onClick = onNavigateToSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = "Cài đặt")
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.title_settings))
                 }
             }
         )
@@ -137,12 +145,12 @@ fun VocabularyScreen(
             Tab(
                 selected = uiState.selectedTab == 0,
                 onClick = { viewModel.onTabSelected(0) },
-                text = { Text("Bộ sưu tập (${uiState.savedCards.size})") }
+                text = { Text(stringResource(R.string.tab_collection_with_count, uiState.savedCards.size)) }
             )
             Tab(
                 selected = uiState.selectedTab == 1,
                 onClick = { viewModel.onTabSelected(1) },
-                text = { Text("Tìm kiếm") }
+                text = { Text(stringResource(R.string.action_search)) }
             )
         }
 
@@ -155,7 +163,9 @@ fun VocabularyScreen(
                 onUpdateLevel = viewModel::updateMemorizationLevel,
                 onEdit = viewModel::startEdit,
                 onDelete = viewModel::requestDelete,
-                listState = listState
+                listState = listState,
+                highlightCardId = uiState.highlightCardId,
+                onHighlightShown = viewModel::clearHighlight
             )
             1 -> SearchTab(
                 uiState = uiState,
@@ -193,7 +203,7 @@ fun VocabularyScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.cancelEdit() },
-            title = { Text("Sửa: ${card.word}") },
+            title = { Text(stringResource(R.string.vocab_edit_title, card.word)) },
             text = {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -202,7 +212,7 @@ fun VocabularyScreen(
                     OutlinedTextField(
                         value = editMeaning,
                         onValueChange = { editMeaning = it },
-                        label = { Text("Nghĩa tiếng Việt") },
+                        label = { Text(stringResource(R.string.vocab_vi_meaning)) },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -214,7 +224,7 @@ fun VocabularyScreen(
 
                     HorizontalDivider()
                     Text(
-                        "Hình ảnh",
+                        stringResource(R.string.vocab_image),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -233,13 +243,13 @@ fun VocabularyScreen(
                     OutlinedTextField(
                         value = editCustomImageUrl,
                         onValueChange = { editCustomImageUrl = it },
-                        label = { Text("URL ảnh (tuỳ chọn)") },
+                        label = { Text(stringResource(R.string.vocab_image_url_optional)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         trailingIcon = {
                             if (editCustomImageUrl.isNotBlank()) {
                                 IconButton(onClick = { editCustomImageUrl = "" }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -247,7 +257,7 @@ fun VocabularyScreen(
 
                     HorizontalDivider()
                     Text(
-                        "Câu ví dụ",
+                        stringResource(R.string.vocab_examples),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -278,7 +288,7 @@ fun VocabularyScreen(
                                     onClick = { editExamples = editExamples.toMutableList().also { it.removeAt(index) } },
                                     modifier = Modifier.size(32.dp)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -286,7 +296,7 @@ fun VocabularyScreen(
                     OutlinedTextField(
                         value = newExampleEn,
                         onValueChange = { newExampleEn = it },
-                        label = { Text("Câu tiếng Anh") },
+                        label = { Text(stringResource(R.string.vocab_example_en_short)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
@@ -294,7 +304,7 @@ fun VocabularyScreen(
                     OutlinedTextField(
                         value = newExampleVi,
                         onValueChange = { newExampleVi = it },
-                        label = { Text("Nghĩa tiếng Việt (tuỳ chọn)") },
+                        label = { Text(stringResource(R.string.vocab_vi_meaning_optional)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -319,7 +329,7 @@ fun VocabularyScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Thêm ví dụ")
+                        Text(stringResource(R.string.vocab_add_example_short))
                     }
                 }
             },
@@ -327,11 +337,11 @@ fun VocabularyScreen(
                 TextButton(onClick = {
                     viewModel.saveEdit(card.copy(meaning = editMeaning, ipa = editIpa, imageUrl = editCustomImageUrl.trim(), examples = editExamples))
                 }) {
-                    Text("Lưu")
+                    Text(stringResource(R.string.action_save))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.cancelEdit() }) { Text("Huỷ") }
+                TextButton(onClick = { viewModel.cancelEdit() }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -340,13 +350,13 @@ fun VocabularyScreen(
     if (uiState.deleteConfirmId != null) {
         AlertDialog(
             onDismissRequest = viewModel::cancelDelete,
-            title = { Text("Xác nhận xoá") },
-            text = { Text("Bạn chắc chắn muốn xoá từ này?") },
+            title = { Text(stringResource(R.string.vocab_confirm_delete_title)) },
+            text = { Text(stringResource(R.string.vocab_confirm_delete_message)) },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmDelete) { Text("Xoá") }
+                TextButton(onClick = viewModel::confirmDelete) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = viewModel::cancelDelete) { Text("Huỷ") }
+                TextButton(onClick = viewModel::cancelDelete) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -355,7 +365,7 @@ fun VocabularyScreen(
     uiState.saveError?.let { error ->
         AlertDialog(
             onDismissRequest = viewModel::clearSaveError,
-            title = { Text("Lỗi") },
+            title = { Text(stringResource(R.string.label_error)) },
             text = { Text(error) },
             confirmButton = { TextButton(onClick = viewModel::clearSaveError) { Text("OK") } }
         )
@@ -394,7 +404,7 @@ private fun SearchTab(
             OutlinedTextField(
                 value = uiState.searchQuery,
                 onValueChange = onQueryChange,
-                label = { Text("Nhập từ tiếng Anh...") },
+                label = { Text(stringResource(R.string.vocab_search_hint)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -404,7 +414,7 @@ private fun SearchTab(
                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
                     } else {
                         IconButton(onClick = onSearch) {
-                            Icon(Icons.Default.Search, contentDescription = "Tìm kiếm")
+                            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.action_search))
                         }
                     }
                 }
@@ -419,7 +429,7 @@ private fun SearchTab(
                         if (uiState.suggestions.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "Có thể bạn muốn tìm:",
+                                stringResource(R.string.vocab_suggestions_title),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -443,7 +453,7 @@ private fun SearchTab(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Tự nhập từ thủ công")
+                            Text(stringResource(R.string.vocab_manual_entry_button))
                         }
                     }
                 }
@@ -478,7 +488,7 @@ private fun SearchTab(
                             )
                             if (entry.audioUrl.isNotEmpty() || entry.word.isNotEmpty()) {
                                 IconButton(onClick = { onSpeak(entry.word) }) {
-                                    Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Phát âm")
+                                    Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = stringResource(R.string.action_pronounce))
                                 }
                             }
                         }
@@ -486,7 +496,7 @@ private fun SearchTab(
                         OutlinedTextField(
                             value = uiState.ipaInput,
                             onValueChange = onIpaChange,
-                            label = { Text("IPA (tuỳ chọn)") },
+                            label = { Text(stringResource(R.string.vocab_ipa_optional)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             placeholder = { Text("/.../ ") }
@@ -501,7 +511,7 @@ private fun SearchTab(
                         OutlinedTextField(
                             value = uiState.viMeaning,
                             onValueChange = onViMeaningChange,
-                            label = { Text("Nghĩa tiếng Việt (tuỳ chọn)") },
+                            label = { Text(stringResource(R.string.vocab_vi_meaning_optional)) },
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 2,
                             enabled = !uiState.isLoadingGeminiInfo,
@@ -516,7 +526,7 @@ private fun SearchTab(
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "Ảnh minh hoạ",
+                            stringResource(R.string.vocab_illustration),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -524,7 +534,7 @@ private fun SearchTab(
                         OutlinedTextField(
                             value = uiState.customImageUrl,
                             onValueChange = onCustomImageUrlChange,
-                            label = { Text("Nhập URL ảnh (tuỳ chọn)") },
+                            label = { Text(stringResource(R.string.vocab_image_url_input)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
@@ -543,7 +553,7 @@ private fun SearchTab(
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "Câu ví dụ",
+                            stringResource(R.string.vocab_examples),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -554,7 +564,7 @@ private fun SearchTab(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                                Text("Đang tải câu ví dụ từ Gemini...", style = MaterialTheme.typography.bodySmall)
+                                Text(stringResource(R.string.vocab_loading_examples), style = MaterialTheme.typography.bodySmall)
                             }
                         } else if (uiState.geminiError != null) {
                             Text(
@@ -613,7 +623,7 @@ private fun SearchTab(
                                         onClick = { onRemoveManualExample(index) },
                                         modifier = Modifier.size(32.dp)
                                     ) {
-                                        Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
                                     }
                                 }
                             }
@@ -622,7 +632,7 @@ private fun SearchTab(
                         OutlinedTextField(
                             value = newExampleEn,
                             onValueChange = { newExampleEn = it },
-                            label = { Text("Câu ví dụ tiếng Anh") },
+                            label = { Text(stringResource(R.string.vocab_example_en)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
@@ -630,7 +640,7 @@ private fun SearchTab(
                         OutlinedTextField(
                             value = newExampleVi,
                             onValueChange = { newExampleVi = it },
-                            label = { Text("Dịch tiếng Việt (tuỳ chọn)") },
+                            label = { Text(stringResource(R.string.vocab_example_vi_optional)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -655,7 +665,7 @@ private fun SearchTab(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Thêm câu ví dụ")
+                            Text(stringResource(R.string.vocab_add_example))
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
@@ -673,9 +683,9 @@ private fun SearchTab(
                             if (uiState.isSaved) {
                                 Icon(Icons.Default.Check, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Đã lưu")
+                                Text(stringResource(R.string.action_saved))
                             } else {
-                                Text("Thêm Flashcard")
+                                Text(stringResource(R.string.vocab_add_flashcard))
                             }
                         }
                     }
@@ -706,21 +716,21 @@ private fun ManualEntryCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                "Nhập từ thủ công",
+                stringResource(R.string.vocab_manual_entry_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             OutlinedTextField(
                 value = uiState.manualWord,
                 onValueChange = onManualWordChange,
-                label = { Text("Từ tiếng Anh") },
+                label = { Text(stringResource(R.string.vocab_english_word)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
             OutlinedTextField(
                 value = uiState.ipaInput,
                 onValueChange = onIpaChange,
-                label = { Text("IPA (tuỳ chọn)") },
+                label = { Text(stringResource(R.string.vocab_ipa_optional)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 placeholder = { Text("/.../ ") }
@@ -728,7 +738,7 @@ private fun ManualEntryCard(
             OutlinedTextField(
                 value = uiState.viMeaning,
                 onValueChange = onViMeaningChange,
-                label = { Text("Nghĩa tiếng Việt (tuỳ chọn)") },
+                label = { Text(stringResource(R.string.vocab_vi_meaning_optional)) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
                 enabled = !uiState.isLoadingGeminiInfo,
@@ -740,14 +750,14 @@ private fun ManualEntryCard(
             )
             HorizontalDivider()
             Text(
-                "Ảnh minh hoạ",
+                stringResource(R.string.vocab_illustration),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold
             )
             OutlinedTextField(
                 value = uiState.customImageUrl,
                 onValueChange = onCustomImageUrlChange,
-                label = { Text("Nhập URL ảnh (tuỳ chọn)") },
+                label = { Text(stringResource(R.string.vocab_image_url_input)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -763,7 +773,7 @@ private fun ManualEntryCard(
             }
             HorizontalDivider()
             Text(
-                "Câu ví dụ",
+                stringResource(R.string.vocab_examples),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -773,7 +783,7 @@ private fun ManualEntryCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                    Text("Đang tải câu ví dụ từ Gemini...", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.vocab_loading_examples), style = MaterialTheme.typography.bodySmall)
                 }
             } else {
                 uiState.dictionaryExamples.forEach { example ->
@@ -812,7 +822,7 @@ private fun ManualEntryCard(
                             }
                         }
                         IconButton(onClick = { onRemoveManualExample(index) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
                         }
                     }
                 }
@@ -820,7 +830,7 @@ private fun ManualEntryCard(
             OutlinedTextField(
                 value = newExampleEn,
                 onValueChange = { newExampleEn = it },
-                label = { Text("Câu ví dụ tiếng Anh") },
+                label = { Text(stringResource(R.string.vocab_example_en)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
@@ -828,7 +838,7 @@ private fun ManualEntryCard(
             OutlinedTextField(
                 value = newExampleVi,
                 onValueChange = { newExampleVi = it },
-                label = { Text("Dịch tiếng Việt (tuỳ chọn)") },
+                label = { Text(stringResource(R.string.vocab_example_vi_optional)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -851,7 +861,7 @@ private fun ManualEntryCard(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Thêm câu ví dụ")
+                Text(stringResource(R.string.vocab_add_example))
             }
             Button(
                 onClick = {
@@ -867,9 +877,9 @@ private fun ManualEntryCard(
                 if (uiState.isSaved) {
                     Icon(Icons.Default.Check, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Đã lưu")
+                    Text(stringResource(R.string.action_saved))
                 } else {
-                    Text("Thêm Flashcard")
+                    Text(stringResource(R.string.vocab_add_flashcard))
                 }
             }
         }
@@ -913,7 +923,9 @@ private fun CollectionTab(
     onUpdateLevel: (String, Int) -> Unit,
     onEdit: (VocabularyCard) -> Unit,
     onDelete: (String) -> Unit,
-    listState: LazyListState = rememberLazyListState()
+    listState: LazyListState = rememberLazyListState(),
+    highlightCardId: String? = null,
+    onHighlightShown: () -> Unit = {}
 ) {
     val filteredCards = remember(cards, collectionQuery) {
         if (collectionQuery.isBlank()) cards
@@ -924,11 +936,23 @@ private fun CollectionTab(
         }
     }
 
+    val highlightedCard = remember(cards, highlightCardId) {
+        highlightCardId?.let { id -> cards.firstOrNull { it.id == id } }
+    }
+
+    LaunchedEffect(highlightCardId, filteredCards) {
+        val id = highlightCardId ?: return@LaunchedEffect
+        val index = filteredCards.indexOfFirst { it.id == id }
+        if (index >= 0) listState.animateScrollToItem(index)
+        delay(2500)
+        onHighlightShown()
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         OutlinedTextField(
             value = collectionQuery,
             onValueChange = onCollectionQueryChange,
-            placeholder = { Text("Tìm trong bộ sưu tập...") },
+            placeholder = { Text(stringResource(R.string.vocab_search_collection_hint)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -937,16 +961,32 @@ private fun CollectionTab(
             trailingIcon = {
                 if (collectionQuery.isNotEmpty()) {
                     IconButton(onClick = { onCollectionQueryChange("") }) {
-                        Icon(Icons.Default.Close, contentDescription = "Xoá", modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
                     }
                 }
             }
         )
 
+        highlightedCard?.let { card ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+            ) {
+                Text(
+                    text = stringResource(R.string.vocab_already_in_collection, card.word),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            }
+        }
+
         if (cards.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "Bộ sưu tập trống.\nHãy tìm kiếm và lưu từ vựng!",
+                    text = stringResource(R.string.vocab_collection_empty),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -957,7 +997,7 @@ private fun CollectionTab(
         if (filteredCards.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "Không tìm thấy từ nào phù hợp.",
+                    text = stringResource(R.string.vocab_no_match),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -976,7 +1016,8 @@ private fun CollectionTab(
                     onSpeak = onSpeak,
                     onUpdateLevel = onUpdateLevel,
                     onEdit = onEdit,
-                    onDelete = onDelete
+                    onDelete = onDelete,
+                    isHighlighted = card.id == highlightCardId
                 )
             }
         }
@@ -989,21 +1030,26 @@ private fun VocabularyCardItem(
     onSpeak: (String) -> Unit,
     onUpdateLevel: (String, Int) -> Unit,
     onEdit: (VocabularyCard) -> Unit,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
+    isHighlighted: Boolean = false
 ) {
-    val levelColors = listOf(
-        MaterialTheme.colorScheme.errorContainer,
-        MaterialTheme.colorScheme.tertiaryContainer,
-        MaterialTheme.colorScheme.primaryContainer
+    val baseBorderColor = memorizationColors.getOrElse(card.memorizationLevel) { MaterialTheme.colorScheme.outline }
+    val highlightBorderColor = MaterialTheme.colorScheme.primary
+    val borderColor by animateColorAsState(
+        targetValue = if (isHighlighted) highlightBorderColor else baseBorderColor,
+        label = "cardBorderColor"
     )
-    val levelLabels = listOf("Không nhớ", "Hơi nhớ", "Đã nhớ")
+    val borderWidth by animateDpAsState(
+        targetValue = if (isHighlighted) 3.dp else 2.dp,
+        label = "cardBorderWidth"
+    )
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .border(
-                width = 2.dp,
-                color = levelColors.getOrElse(card.memorizationLevel) { MaterialTheme.colorScheme.outline },
+                width = borderWidth,
+                color = borderColor,
                 shape = MaterialTheme.shapes.medium
             )
     ) {
@@ -1037,13 +1083,13 @@ private fun VocabularyCardItem(
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = { onSpeak(card.word) }) {
-                        Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Phát âm", modifier = Modifier.size(20.dp))
+                        Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = stringResource(R.string.action_pronounce), modifier = Modifier.size(20.dp))
                     }
                     IconButton(onClick = { onEdit(card) }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Sửa", modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.action_edit), modifier = Modifier.size(20.dp))
                     }
                     IconButton(onClick = { onDelete(card.id) }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Xóa", modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(20.dp))
                     }
                 }
                 if (card.ipa.isNotEmpty()) {
@@ -1080,8 +1126,8 @@ private fun VocabularyCardItem(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 AssistChip(
-                    onClick = { onUpdateLevel(card.id, (card.memorizationLevel + 1) % 3) },
-                    label = { Text(levelLabels.getOrElse(card.memorizationLevel) { "Không nhớ" }, style = MaterialTheme.typography.labelSmall) }
+                    onClick = { onUpdateLevel(card.id, (card.memorizationLevel + 1) % MemorizationLevel.COUNT) },
+                    label = { Text(stringResource(memorizationLabelRes.getOrElse(card.memorizationLevel) { memorizationLabelRes[0] }), style = MaterialTheme.typography.labelSmall) }
                 )
             }
         }

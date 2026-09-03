@@ -1,6 +1,8 @@
 package com.hieupnd.wordflash
 
 import android.app.Application
+import android.content.Context
+import com.hieupnd.wordflash.data.local.LanguageStore
 import com.hieupnd.wordflash.notification.NotificationHelper
 import coil.Coil
 import coil.ImageLoader
@@ -13,6 +15,11 @@ import java.util.concurrent.TimeUnit
 
 @HiltAndroidApp
 class WordFlashApplication : Application() {
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(LanguageStore.wrap(base))
+    }
+
     override fun onCreate() {
         super.onCreate()
         NotificationHelper.createChannel(this)

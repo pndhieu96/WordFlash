@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.hieupnd.wordflash.data.local.ReviewSettingsStore
 import com.hieupnd.wordflash.domain.model.ReviewItem
 import com.hieupnd.wordflash.domain.repository.SentenceRepository
 import com.hieupnd.wordflash.domain.repository.VocabularyRepository
@@ -26,8 +27,6 @@ import java.util.Calendar
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
-private const val VOCAB_SESSION_SIZE = 20
-private const val SENTENCE_SESSION_SIZE = 5
 private const val WORK_TAG = "daily_reminder"
 
 @HiltViewModel
@@ -37,6 +36,7 @@ class ReviewViewModel @Inject constructor(
     private val updateSentenceMemorizationUseCase: UpdateSentenceMemorizationUseCase,
     private val vocabRepository: VocabularyRepository,
     private val sentenceRepository: SentenceRepository,
+    private val reviewSettingsStore: ReviewSettingsStore,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -85,9 +85,12 @@ class ReviewViewModel @Inject constructor(
             val lastStudy = prefs.getString(DailyReminderWorker.KEY_LAST_STUDY_DATE, "")
             val studiedToday = lastStudy == today
 
+            val vocabSize = reviewSettingsStore.getVocabSessionSize()
+            val sentenceSize = reviewSettingsStore.getSentenceSessionSize()
+
             val allItems = getReviewCardsUseCase().first()
-            val vocabItems = allItems.filterIsInstance<ReviewItem.VocabItem>().take(VOCAB_SESSION_SIZE)
-            val sentenceItems = allItems.filterIsInstance<ReviewItem.SentenceItem>().take(SENTENCE_SESSION_SIZE)
+            val vocabItems = allItems.filterIsInstance<ReviewItem.VocabItem>().take(vocabSize)
+            val sentenceItems = allItems.filterIsInstance<ReviewItem.SentenceItem>().take(sentenceSize)
             val items = vocabItems + sentenceItems
 
             _uiState.update {
@@ -97,7 +100,9 @@ class ReviewViewModel @Inject constructor(
                     currentIndex = 0,
                     isFlipped = false,
                     isComplete = items.isEmpty(),
-                    hasStudiedToday = studiedToday
+                    hasStudiedToday = studiedToday,
+                    vocabSessionSize = vocabSize,
+                    sentenceSessionSize = sentenceSize
                 )
             }
         }
@@ -174,6 +179,12 @@ class ReviewViewModel @Inject constructor(
     }
 
     fun restartSession() {
+        loadSession()
+    }
+
+    fun setSessionSizes(vocabSize: Int, sentenceSize: Int) {
+        reviewSettingsStore.setVocabSessionSize(vocabSize)
+        reviewSettingsStore.setSentenceSessionSize(sentenceSize)
         loadSession()
     }
 

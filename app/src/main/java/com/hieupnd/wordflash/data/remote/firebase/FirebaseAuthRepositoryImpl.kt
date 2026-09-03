@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.hieupnd.wordflash.domain.model.SignInFailedException
 
 @Singleton
 class FirebaseAuthRepositoryImpl @Inject constructor(
@@ -28,7 +29,7 @@ class FirebaseAuthRepositoryImpl @Inject constructor(
     override suspend fun signInWithGoogle(idToken: String): Result<UserInfo> = runCatching {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         val result = auth.signInWithCredential(credential).await()
-        result.user?.toUserInfo() ?: throw Exception("Đăng nhập thất bại")
+        result.user?.toUserInfo() ?: throw SignInFailedException()
     }
 
     override suspend fun signOut() = auth.signOut()

@@ -1,5 +1,6 @@
 package com.hieupnd.wordflash.domain.usecase.review
 
+import com.hieupnd.wordflash.domain.model.MemorizationLevel
 import com.hieupnd.wordflash.domain.model.ReviewItem
 import com.hieupnd.wordflash.domain.repository.SentenceRepository
 import com.hieupnd.wordflash.domain.repository.VocabularyRepository
@@ -27,11 +28,7 @@ class GetReviewCardsUseCase @Inject constructor(
                 is ReviewItem.SentenceItem -> item.card.lastReviewedAt.takeIf { it > 0 } ?: item.card.updatedAt
             }
             val daysSince = ((now - lastReviewed) / 86400000L).coerceIn(0, 14).toInt()
-            val baseWeight = when (item.memorizationLevel) {
-                0 -> 10
-                1 -> 5
-                else -> 1
-            }
+            val baseWeight = MemorizationLevel.weightOf(item.memorizationLevel)
             val totalWeight = baseWeight + daysSince
             List(totalWeight) { item }
         }.shuffled().distinctBy { it.id }

@@ -1,9 +1,11 @@
 package com.hieupnd.wordflash.presentation.vocabulary
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hieupnd.wordflash.BuildConfig
+import com.hieupnd.wordflash.R
 import com.hieupnd.wordflash.domain.model.Example
 import com.hieupnd.wordflash.domain.model.VocabularyCard
 import com.hieupnd.wordflash.domain.usecase.vocabulary.DeleteVocabularyCardUseCase
@@ -15,6 +17,7 @@ import com.hieupnd.wordflash.domain.usecase.vocabulary.SearchWordUseCase
 import com.hieupnd.wordflash.domain.usecase.vocabulary.UpdateVocabularyCardUseCase
 import com.hieupnd.wordflash.domain.usecase.vocabulary.UpdateVocabularyMemorizationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +36,8 @@ class VocabularyViewModel @Inject constructor(
     private val deleteVocabularyCardUseCase: DeleteVocabularyCardUseCase,
     private val getVocabularyCardsUseCase: GetVocabularyCardsUseCase,
     private val updateVocabularyMemorizationUseCase: UpdateVocabularyMemorizationUseCase,
-    private val getWordSuggestionsUseCase: GetWordSuggestionsUseCase
+    private val getWordSuggestionsUseCase: GetWordSuggestionsUseCase,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(VocabularyUiState())
@@ -59,6 +63,24 @@ class VocabularyViewModel @Inject constructor(
     fun searchWord() {
         val query = _uiState.value.searchQuery.trim()
         if (query.isEmpty()) return
+
+        val existing = _uiState.value.savedCards.firstOrNull { it.word.equals(query, ignoreCase = true) }
+        if (existing != null) {
+            _uiState.update {
+                it.copy(
+                    selectedTab = 0,
+                    collectionQuery = existing.word,
+                    highlightCardId = existing.id,
+                    isLoading = false,
+                    isLoadingGeminiInfo = false,
+                    error = null,
+                    geminiError = null,
+                    suggestions = emptyList()
+                )
+            }
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -114,7 +136,7 @@ class VocabularyViewModel @Inject constructor(
                                 _uiState.update {
                                     it.copy(
                                         isLoadingGeminiInfo = false,
-                                        geminiError = "Không thể tải thông tin từ Gemini: ${error.message}"
+                                        geminiError = context.getString(R.string.vocab_gemini_error, error.message.orEmpty())
                                     )
                                 }
                             }
@@ -126,7 +148,7 @@ class VocabularyViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             isLoadingGeminiInfo = false,
-                            error = "Không tìm thấy từ '$query'. Hãy kiểm tra lại chính tả."
+                            error = context.getString(R.string.vocab_not_found, query)
                         )
                     }
                     fetchSuggestions(query)
@@ -238,7 +260,7 @@ class VocabularyViewModel @Inject constructor(
             )
             runCatching { saveVocabularyCardUseCase(card) }
                 .onSuccess { _uiState.update { it.copy(isSaved = true) } }
-                .onFailure { _uiState.update { it.copy(saveError = "Lưu thất bại. Vui lòng thử lại.") } }
+                .onFailure { _uiState.update { it.copy(saveError = context.getString(R.string.error_save_failed)) } }
         }
     }
 
@@ -249,11 +271,15 @@ class VocabularyViewModel @Inject constructor(
     }
 
     fun onTabSelected(tab: Int) {
-        _uiState.update { it.copy(selectedTab = tab) }
+        _uiState.update { it.copy(selectedTab = tab, highlightCardId = null) }
     }
 
     fun onCollectionQueryChange(query: String) {
-        _uiState.update { it.copy(collectionQuery = query) }
+        _uiState.update { it.copy(collectionQuery = query, highlightCardId = null) }
+    }
+
+    fun clearHighlight() {
+        _uiState.update { it.copy(highlightCardId = null) }
     }
 
     fun startEdit(card: VocabularyCard) {
@@ -268,7 +294,7 @@ class VocabularyViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { updateVocabularyCardUseCase(updated) }
                 .onSuccess { _uiState.update { it.copy(editingCard = null) } }
-                .onFailure { _uiState.update { it.copy(saveError = "Cập nhật thất bại. Vui lòng thử lại.") } }
+                .onFailure { _uiState.update { it.copy(saveError = context.getString(R.string.error_update_failed)) } }
         }
     }
 
@@ -281,7 +307,7 @@ class VocabularyViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { deleteVocabularyCardUseCase(id) }
                 .onSuccess { _uiState.update { it.copy(deleteConfirmId = null) } }
-                .onFailure { _uiState.update { it.copy(deleteConfirmId = null, saveError = "Xoá thất bại. Vui lòng thử lại.") } }
+                .onFailure { _uiState.update { it.copy(deleteConfirmId = null, saveError = context.getString(R.string.error_delete_failed)) } }
         }
     }
 

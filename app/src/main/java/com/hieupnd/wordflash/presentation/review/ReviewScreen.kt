@@ -27,6 +27,9 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.layout.ContentScale
 import com.hieupnd.wordflash.presentation.components.WordFlashAsyncImage
+import com.hieupnd.wordflash.presentation.components.contentColorFor as levelContentColorFor
+import com.hieupnd.wordflash.presentation.components.memorizationColors
+import com.hieupnd.wordflash.presentation.components.memorizationLabelRes
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -58,6 +61,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hieupnd.wordflash.domain.model.ReviewItem
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.hieupnd.wordflash.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,21 +87,21 @@ fun ReviewScreen(
 
     Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
         TopAppBar(
-            title = { Text("Ôn tập") },
+            title = { Text(stringResource(R.string.nav_review)) },
             actions = {
                 if (uiState.hasStudiedToday) {
                     Icon(
                         Icons.Default.CheckCircle,
-                        contentDescription = "Đã học hôm nay",
+                        contentDescription = stringResource(R.string.review_studied_today),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(end = 4.dp).size(24.dp)
                     )
                 }
                 IconButton(onClick = viewModel::restartSession) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Bắt đầu lại")
+                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.review_restart))
                 }
                 IconButton(onClick = onNavigateToSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = "Cài đặt")
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.title_settings))
                 }
             }
         )
@@ -172,7 +177,7 @@ private fun ReviewContent(
 
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = if (!uiState.isFlipped) "Nhấn thẻ để xem đáp án" else "Đánh giá mức độ của bạn:",
+            text = if (!uiState.isFlipped) stringResource(R.string.review_tap_to_reveal) else stringResource(R.string.review_rate_prompt),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -227,7 +232,7 @@ private fun CardFront(item: ReviewItem, onSpeak: (String) -> Unit) {
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         IconButton(onClick = { onSpeak(item.card.word) }) {
-                            Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Phát âm")
+                            Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = stringResource(R.string.action_pronounce))
                         }
                     }
                     if (item.card.ipa.isNotEmpty()) {
@@ -341,28 +346,25 @@ private fun CardBack(item: ReviewItem) {
 private fun RatingButtons(onRate: (Int) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Button(
-            onClick = { onRate(0) },
-            modifier = Modifier.weight(1f),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-        ) {
-            Text("Không nhớ", textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium)
-        }
-        Button(
-            onClick = { onRate(1) },
-            modifier = Modifier.weight(1f),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-        ) {
-            Text("Hơi nhớ", textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium)
-        }
-        Button(
-            onClick = { onRate(2) },
-            modifier = Modifier.weight(1f),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-        ) {
-            Text("Đã nhớ", textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium)
+        memorizationLabelRes.forEachIndexed { level, labelRes ->
+            Button(
+                onClick = { onRate(level) },
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = memorizationColors[level],
+                    contentColor = levelContentColorFor(level)
+                )
+            ) {
+                Text(
+                    text = stringResource(labelRes),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 2
+                )
+            }
         }
     }
 }
@@ -381,15 +383,15 @@ private fun CompletionScreen(hasStudiedToday: Boolean, onRestart: () -> Unit) {
                 Spacer(modifier = Modifier.height(8.dp))
             }
             Text(
-                text = "Hoàn thành phiên ôn tập!",
+                text = stringResource(R.string.review_session_complete),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (hasStudiedToday) "Bạn đã hoàn thành việc học hôm nay! Tuyệt vời!"
-                       else "Bạn đã ôn tập xong tất cả thẻ trong phiên này.",
+                text = if (hasStudiedToday) stringResource(R.string.review_done_today)
+                       else stringResource(R.string.review_done_all),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -398,7 +400,7 @@ private fun CompletionScreen(hasStudiedToday: Boolean, onRestart: () -> Unit) {
             Button(onClick = onRestart) {
                 Icon(Icons.Default.Refresh, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Ôn tập lại")
+                Text(stringResource(R.string.review_again))
             }
         }
     }
@@ -408,7 +410,7 @@ private fun CompletionScreen(hasStudiedToday: Boolean, onRestart: () -> Unit) {
 private fun EmptyReviewScreen() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
-            text = "Chưa có thẻ nào để ôn tập.\nHãy thêm từ vựng hoặc câu trước!",
+            text = stringResource(R.string.review_no_cards),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

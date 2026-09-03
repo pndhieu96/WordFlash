@@ -6,6 +6,7 @@ import com.hieupnd.wordflash.domain.repository.SyncRepository
 import com.hieupnd.wordflash.domain.repository.VocabularyRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+import com.hieupnd.wordflash.domain.model.NotSignedInException
 
 data class SyncResult(
     val vocabUploaded: Int,
@@ -24,7 +25,7 @@ class SyncDataUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(): Result<SyncResult> = runCatching {
         val user = authRepository.getCurrentUser().first()
-            ?: throw Exception("Chưa đăng nhập")
+            ?: throw NotSignedInException()
         val uid = user.uid
 
         // --- Vocabulary ---

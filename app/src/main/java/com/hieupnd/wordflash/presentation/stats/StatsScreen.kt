@@ -42,6 +42,8 @@ import com.hieupnd.wordflash.domain.model.DailyStats
 import com.hieupnd.wordflash.presentation.components.StreakCard
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import androidx.compose.ui.res.stringResource
+import com.hieupnd.wordflash.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,7 +56,7 @@ fun StatsScreen(
     LaunchedEffect(Unit) { viewModel.loadStats() }
 
     Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-        TopAppBar(title = { Text("Thống kê") })
+        TopAppBar(title = { Text(stringResource(R.string.title_stats)) })
 
         if (uiState.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -90,7 +92,7 @@ private fun ActivityChartCard(stats: List<DailyStats>) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Hoạt động 7 ngày qua",
+                text = stringResource(R.string.stats_activity_7_days),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -109,9 +111,9 @@ private val colorReview = Color(0xFFFF9800)
 @Composable
 private fun ChartLegend() {
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        LegendItem(color = colorVocab, label = "Từ thêm")
-        LegendItem(color = colorSentence, label = "Câu thêm")
-        LegendItem(color = colorReview, label = "Lượt ôn")
+        LegendItem(color = colorVocab, label = stringResource(R.string.stats_legend_words))
+        LegendItem(color = colorSentence, label = stringResource(R.string.stats_legend_sentences))
+        LegendItem(color = colorReview, label = stringResource(R.string.stats_legend_reviews))
     }
 }
 
@@ -191,7 +193,7 @@ private fun BarChart(stats: List<DailyStats>) {
         // X-axis date labels
         Row(modifier = Modifier.fillMaxWidth()) {
             stats.forEach { day ->
-                val label = if (day.date == today) "Hôm nay" else day.date.format(dayFormatter)
+                val label = if (day.date == today) stringResource(R.string.stats_today) else day.date.format(dayFormatter)
                 Text(
                     text = label,
                     modifier = Modifier.weight(1f),

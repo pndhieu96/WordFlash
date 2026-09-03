@@ -6,6 +6,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.hieupnd.wordflash.R
+import com.hieupnd.wordflash.domain.model.NotSignedInException
+import com.hieupnd.wordflash.domain.model.SignInFailedException
 import com.hieupnd.wordflash.domain.repository.AuthRepository
 import com.hieupnd.wordflash.domain.usecase.sync.SyncDataUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,7 +23,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SyncViewModel @Inject constructor(
-    application: Application,
+    private val application: Application,
     private val authRepository: AuthRepository,
     private val syncDataUseCase: SyncDataUseCase
 ) : AndroidViewModel(application) {
@@ -48,15 +50,22 @@ class SyncViewModel @Inject constructor(
     fun onGoogleSignInResult(account: GoogleSignInAccount?) {
         val idToken = account?.idToken
         if (idToken == null) {
-            _uiState.update { it.copy(syncError = "Không lấy được token đăng nhập") }
+            _uiState.update { it.copy(syncError = application.getString(R.string.error_no_token)) }
             return
         }
         viewModelScope.launch {
             _uiState.update { it.copy(isSyncing = true, syncError = null) }
             authRepository.signInWithGoogle(idToken)
                 .onSuccess { _uiState.update { it.copy(isSyncing = false) } }
-                .onFailure { e -> _uiState.update { it.copy(isSyncing = false, syncError = e.message) } }
+                .onFailure { e -> _uiState.update { it.copy(isSyncing = false, syncError = messageFor(e)) } }
         }
+    }
+
+    /** Đổi lỗi tầng dưới sang chuỗi đã dịch; lỗi lạ thì giữ nguyên message gốc. */
+    private fun messageFor(e: Throwable): String = when (e) {
+        is NotSignedInException -> application.getString(R.string.error_not_signed_in)
+        is SignInFailedException -> application.getString(R.string.error_sign_in_failed)
+        else -> e.message ?: application.getString(R.string.label_error)
     }
 
     fun onGoogleSignInError(message: String?) {
@@ -73,7 +82,7 @@ class SyncViewModel @Inject constructor(
                     }
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(isSyncing = false, syncError = e.message ?: e.toString()) }
+                    _uiState.update { it.copy(isSyncing = false, syncError = messageFor(e)) }
                 }
         }
     }

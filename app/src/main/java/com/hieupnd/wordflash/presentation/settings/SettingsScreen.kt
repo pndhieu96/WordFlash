@@ -43,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -77,6 +78,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
+import com.hieupnd.wordflash.data.local.ReviewSettingsStore
 import com.hieupnd.wordflash.domain.model.DailyStats
 import com.hieupnd.wordflash.presentation.components.StreakCard
 import com.hieupnd.wordflash.presentation.review.ReviewViewModel
@@ -84,6 +86,14 @@ import com.hieupnd.wordflash.presentation.stats.StatsViewModel
 import com.hieupnd.wordflash.presentation.sync.SyncViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import com.hieupnd.wordflash.R
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import com.hieupnd.wordflash.data.local.LanguageStore
+import androidx.activity.compose.LocalActivity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,6 +109,7 @@ fun SettingsScreen(
     val reviewUiState by reviewViewModel.uiState.collectAsStateWithLifecycle()
     val statsUiState by statsViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val activity = LocalActivity.current
 
     var showTimePicker by remember { mutableStateOf(false) }
 
@@ -108,6 +119,10 @@ fun SettingsScreen(
         if (granted) showTimePicker = true
     }
 
+    val configErrorMessage = stringResource(R.string.settings_sign_in_config_error)
+    val networkErrorMessage = stringResource(R.string.settings_sign_in_network_error)
+    val signInFailedFormat = stringResource(R.string.settings_sign_in_failed_code)
+
     val signInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
@@ -116,9 +131,9 @@ fun SettingsScreen(
         } catch (e: ApiException) {
             val message = when (e.statusCode) {
                 GoogleSignInStatusCodes.SIGN_IN_CANCELLED -> null
-                CommonStatusCodes.DEVELOPER_ERROR -> "Lỗi cấu hình: kiểm tra SHA-1 trong Firebase Console"
-                CommonStatusCodes.NETWORK_ERROR -> "Lỗi mạng, thử lại sau"
-                else -> "Đăng nhập thất bại (mã lỗi: ${e.statusCode})"
+                CommonStatusCodes.DEVELOPER_ERROR -> configErrorMessage
+                CommonStatusCodes.NETWORK_ERROR -> networkErrorMessage
+                else -> signInFailedFormat.format(e.statusCode)
             }
             syncViewModel.onGoogleSignInError(message)
         }
@@ -128,10 +143,10 @@ fun SettingsScreen(
 
     Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
         TopAppBar(
-            title = { Text("Cài đặt") },
+            title = { Text(stringResource(R.string.title_settings)) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                 }
             }
         )
@@ -144,7 +159,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Account & Sync section
-            SectionHeader("Tài khoản & Đồng bộ")
+            SectionHeader(stringResource(R.string.settings_section_account))
             AccountSyncCard(
                 syncUiState = syncUiState,
                 onSignIn = { signInLauncher.launch(syncViewModel.googleSignInClient.signInIntent) },
@@ -153,7 +168,7 @@ fun SettingsScreen(
             )
 
             // Notifications section
-            SectionHeader("Thông báo")
+            SectionHeader(stringResource(R.string.settings_section_notifications))
             NotificationCard(
                 notificationHour = reviewUiState.notificationHour,
                 notificationMinute = reviewUiState.notificationMinute,
@@ -173,12 +188,32 @@ fun SettingsScreen(
                 }
             )
 
+            // Review session section
+            SectionHeader(stringResource(R.string.settings_section_review))
+            ReviewSessionCard(
+                vocabSize = reviewUiState.vocabSessionSize,
+                sentenceSize = reviewUiState.sentenceSessionSize,
+                onSizesChange = reviewViewModel::setSessionSizes
+            )
+
+            // Language section
+            SectionHeader(stringResource(R.string.settings_section_language))
+            LanguageCard(
+                current = settingsViewModel.getLanguage(),
+                onSelect = { tag ->
+                    if (tag != settingsViewModel.getLanguage()) {
+                        settingsViewModel.setLanguage(tag)
+                        activity?.recreate()
+                    }
+                }
+            )
+
             // AI section
-            SectionHeader("Cài đặt AI")
+            SectionHeader(stringResource(R.string.settings_section_ai))
             GeminiApiKeyCard(settingsViewModel = settingsViewModel)
 
             // Statistics section
-            SectionHeader("Thống kê")
+            SectionHeader(stringResource(R.string.settings_section_stats))
             StreakCard(
                 currentStreak = reviewUiState.currentStreak,
                 longestStreak = reviewUiState.longestStreak
@@ -206,7 +241,7 @@ fun SettingsScreen(
     syncUiState.syncError?.let { error ->
         AlertDialog(
             onDismissRequest = syncViewModel::clearError,
-            title = { Text("Lỗi đồng bộ") },
+            title = { Text(stringResource(R.string.settings_sync_error_title)) },
             text = { Text(error) },
             confirmButton = { TextButton(onClick = syncViewModel::clearError) { Text("OK") } }
         )
@@ -215,14 +250,14 @@ fun SettingsScreen(
     syncUiState.syncResult?.let { result ->
         AlertDialog(
             onDismissRequest = syncViewModel::clearSyncResult,
-            title = { Text("Đồng bộ thành công") },
+            title = { Text(stringResource(R.string.settings_sync_success_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Đã tải lên: ${result.vocabUploaded} từ vựng, ${result.sentenceUploaded} câu")
+                    Text(stringResource(R.string.settings_sync_uploaded, result.vocabUploaded, result.sentenceUploaded))
                     if (result.vocabAdded > 0 || result.vocabUpdated > 0)
-                        Text("Từ vựng tải về: +${result.vocabAdded} mới, cập nhật ${result.vocabUpdated}")
+                        Text(stringResource(R.string.settings_sync_vocab_down, result.vocabAdded, result.vocabUpdated))
                     if (result.sentenceAdded > 0 || result.sentenceUpdated > 0)
-                        Text("Câu tải về: +${result.sentenceAdded} mới, cập nhật ${result.sentenceUpdated}")
+                        Text(stringResource(R.string.settings_sync_sentence_down, result.sentenceAdded, result.sentenceUpdated))
                 }
             },
             confirmButton = {
@@ -263,7 +298,7 @@ private fun AccountSyncCard(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            syncUiState.currentUser!!.displayName ?: "Người dùng",
+                            syncUiState.currentUser!!.displayName ?: stringResource(R.string.settings_user_fallback),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -284,15 +319,15 @@ private fun AccountSyncCard(
                         if (syncUiState.isSyncing) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Đang đồng bộ...")
+                            Text(stringResource(R.string.settings_syncing))
                         } else {
                             Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Đồng bộ")
+                            Text(stringResource(R.string.settings_sync))
                         }
                     }
                     OutlinedButton(onClick = onSignOut, modifier = Modifier.weight(1f)) {
-                        Text("Đăng xuất")
+                        Text(stringResource(R.string.settings_sign_out))
                     }
                 }
             } else {
@@ -305,16 +340,16 @@ private fun AccountSyncCard(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text("Chưa đăng nhập", style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.settings_not_signed_in), style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            "Đăng nhập để đồng bộ dữ liệu trên nhiều thiết bị",
+                            stringResource(R.string.settings_sign_in_prompt),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
                 Button(onClick = onSignIn, modifier = Modifier.fillMaxWidth()) {
-                    Text("Đăng nhập với Google")
+                    Text(stringResource(R.string.settings_sign_in_google))
                 }
             }
         }
@@ -330,8 +365,10 @@ private fun GeminiApiKeyCard(settingsViewModel: SettingsViewModel) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = if (settingsViewModel.hasCustomKey()) "API key đã được cấu hình"
-                       else "Chưa có API key — tính năng Gemini sẽ không hoạt động",
+                text = stringResource(
+                    if (settingsViewModel.hasCustomKey()) R.string.settings_api_key_configured
+                    else R.string.settings_api_key_missing
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (settingsViewModel.hasCustomKey()) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.error
@@ -341,7 +378,7 @@ private fun GeminiApiKeyCard(settingsViewModel: SettingsViewModel) {
                 onValueChange = { apiKeyText = it; saved = false },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Gemini API Key") },
-                placeholder = { Text("Nhập API key của bạn") },
+                placeholder = { Text(stringResource(R.string.settings_api_key_hint)) },
                 singleLine = true,
                 visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -349,7 +386,7 @@ private fun GeminiApiKeyCard(settingsViewModel: SettingsViewModel) {
                     IconButton(onClick = { keyVisible = !keyVisible }) {
                         Icon(
                             if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (keyVisible) "Ẩn" else "Hiện"
+                            contentDescription = stringResource(if (keyVisible) R.string.action_hide else R.string.action_show)
                         )
                     }
                 }
@@ -362,7 +399,7 @@ private fun GeminiApiKeyCard(settingsViewModel: SettingsViewModel) {
                     },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(if (saved) "Đã lưu!" else "Lưu")
+                    Text(stringResource(if (saved) R.string.action_saved_exclaim else R.string.action_save))
                 }
                 if (settingsViewModel.hasCustomKey()) {
                     OutlinedButton(
@@ -373,10 +410,130 @@ private fun GeminiApiKeyCard(settingsViewModel: SettingsViewModel) {
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Xóa key")
+                        Text(stringResource(R.string.settings_delete_key))
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LanguageCard(
+    current: String,
+    onSelect: (String) -> Unit
+) {
+    val options = listOf(
+        LanguageStore.VIETNAMESE to R.string.settings_language_vietnamese,
+        LanguageStore.ENGLISH to R.string.settings_language_english,
+    )
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                options.forEachIndexed { index, (tag, labelRes) ->
+                    SegmentedButton(
+                        selected = current == tag,
+                        onClick = { onSelect(tag) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                    ) {
+                        Text(stringResource(labelRes))
+                    }
+                }
+            }
+            Text(
+                text = stringResource(R.string.settings_language_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewSessionCard(
+    vocabSize: Int,
+    sentenceSize: Int,
+    onSizesChange: (Int, Int) -> Unit
+) {
+    var vocabValue by remember(vocabSize) { mutableStateOf(vocabSize.toFloat()) }
+    var sentenceValue by remember(sentenceSize) { mutableStateOf(sentenceSize.toFloat()) }
+
+    val commit = { onSizesChange(vocabValue.roundToInt(), sentenceValue.roundToInt()) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SessionSizeSlider(
+                label = stringResource(R.string.settings_words_per_session),
+                value = vocabValue,
+                min = ReviewSettingsStore.VOCAB_MIN,
+                max = ReviewSettingsStore.VOCAB_MAX,
+                steps = 8,
+                onValueChange = { vocabValue = it },
+                onValueChangeFinished = commit
+            )
+            HorizontalDivider()
+            SessionSizeSlider(
+                label = stringResource(R.string.settings_sentences_per_session),
+                value = sentenceValue,
+                min = ReviewSettingsStore.SENTENCE_MIN,
+                max = ReviewSettingsStore.SENTENCE_MAX,
+                steps = 3,
+                onValueChange = { sentenceValue = it },
+                onValueChangeFinished = commit
+            )
+            Text(
+                text = stringResource(R.string.settings_cards_per_session, vocabValue.roundToInt() + sentenceValue.roundToInt()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun SessionSizeSlider(
+    label: String,
+    value: Float,
+    min: Int,
+    max: Int,
+    steps: Int,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit
+) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = value.roundToInt().toString(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
+            valueRange = min.toFloat()..max.toFloat(),
+            steps = steps
+        )
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = min.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = max.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End
+            )
         }
     }
 }
@@ -402,20 +559,20 @@ private fun NotificationCard(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    if (notificationHour >= 0) "Nhắc nhở hàng ngày" else "Nhắc nhở tắt",
+                    stringResource(if (notificationHour >= 0) R.string.settings_reminder_on else R.string.settings_reminder_off),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold
                 )
                 if (notificationHour >= 0) {
                     Text(
-                        "Lúc %02d:%02d".format(notificationHour, notificationMinute),
+                        stringResource(R.string.settings_reminder_at, notificationHour, notificationMinute),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
             TextButton(onClick = onToggle) {
-                Text(if (notificationHour >= 0) "Tắt" else "Bật")
+                Text(stringResource(if (notificationHour >= 0) R.string.settings_turn_off else R.string.settings_turn_on))
             }
         }
     }
@@ -426,7 +583,7 @@ private fun ActivityChartCard(stats: List<DailyStats>) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Hoạt động 7 ngày qua",
+                text = stringResource(R.string.stats_activity_7_days),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -445,9 +602,9 @@ private val colorReview = Color(0xFFFF9800)
 @Composable
 private fun ChartLegend() {
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        LegendItem(color = colorVocab, label = "Từ thêm")
-        LegendItem(color = colorSentence, label = "Câu thêm")
-        LegendItem(color = colorReview, label = "Lượt ôn")
+        LegendItem(color = colorVocab, label = stringResource(R.string.stats_legend_words))
+        LegendItem(color = colorSentence, label = stringResource(R.string.stats_legend_sentences))
+        LegendItem(color = colorReview, label = stringResource(R.string.stats_legend_reviews))
     }
 }
 
@@ -493,7 +650,8 @@ private fun BarChart(stats: List<DailyStats>) {
 
         Row(modifier = Modifier.fillMaxWidth()) {
             stats.forEach { day ->
-                val label = if (day.date == today) "Hôm nay" else day.date.format(dayFormatter)
+                val todayLabel = stringResource(R.string.stats_today)
+                val label = if (day.date == today) todayLabel else day.date.format(dayFormatter)
                 Text(
                     text = label,
                     modifier = Modifier.weight(1f),
@@ -518,13 +676,13 @@ private fun NotificationTimePickerDialog(
     val timePickerState = rememberTimePickerState(initialHour = initialHour, initialMinute = initialMinute, is24Hour = true)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Chọn giờ nhắc nhở hàng ngày") },
+        title = { Text(stringResource(R.string.settings_pick_reminder_time)) },
         text = { TimePicker(state = timePickerState) },
         confirmButton = {
-            TextButton(onClick = { onConfirm(timePickerState.hour, timePickerState.minute) }) { Text("Xác nhận") }
+            TextButton(onClick = { onConfirm(timePickerState.hour, timePickerState.minute) }) { Text(stringResource(R.string.action_confirm)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Huỷ") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }

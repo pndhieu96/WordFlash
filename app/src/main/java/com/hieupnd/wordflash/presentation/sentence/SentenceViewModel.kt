@@ -1,7 +1,9 @@
 package com.hieupnd.wordflash.presentation.sentence
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hieupnd.wordflash.R
 import com.hieupnd.wordflash.domain.model.Example
 import com.hieupnd.wordflash.domain.model.SentenceCard
 import com.hieupnd.wordflash.domain.usecase.sentence.DeleteSentenceCardUseCase
@@ -11,6 +13,7 @@ import com.hieupnd.wordflash.domain.usecase.sentence.SaveSentenceCardUseCase
 import com.hieupnd.wordflash.domain.usecase.sentence.UpdateSentenceCardUseCase
 import com.hieupnd.wordflash.domain.usecase.sentence.UpdateSentenceMemorizationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +29,8 @@ class SentenceViewModel @Inject constructor(
     private val deleteSentenceCardUseCase: DeleteSentenceCardUseCase,
     private val getSentenceCardsUseCase: GetSentenceCardsUseCase,
     private val updateSentenceMemorizationUseCase: UpdateSentenceMemorizationUseCase,
-    private val getSentenceInfoFromGeminiUseCase: GetSentenceInfoFromGeminiUseCase
+    private val getSentenceInfoFromGeminiUseCase: GetSentenceInfoFromGeminiUseCase,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SentenceUiState())
@@ -79,8 +83,8 @@ class SentenceViewModel @Inject constructor(
                 structureItems = it.structureItems + StructureItem(
                     displayName = type.enName,
                     category = "wordtype",
-                    viName = type.viName,
-                    description = type.description
+                    viNameRes = type.viNameRes,
+                    description = context.getString(type.descriptionRes)
                 )
             )
         }
@@ -93,8 +97,8 @@ class SentenceViewModel @Inject constructor(
                 structureItems = it.structureItems + StructureItem(
                     displayName = role.enName,
                     category = "role",
-                    viName = role.viName,
-                    description = role.description
+                    viNameRes = role.viNameRes,
+                    description = context.getString(role.descriptionRes)
                 )
             )
         }
@@ -147,7 +151,7 @@ class SentenceViewModel @Inject constructor(
     fun saveSentence() {
         val state = _uiState.value
         if (state.structureItems.isEmpty()) {
-            _uiState.update { it.copy(error = "Vui lòng thêm ít nhất 1 thành phần để tạo cấu trúc.") }
+            _uiState.update { it.copy(error = context.getString(R.string.sentence_need_one_part)) }
             return
         }
         viewModelScope.launch {
@@ -175,7 +179,7 @@ class SentenceViewModel @Inject constructor(
                         )
                     }
                 }
-                .onFailure { _uiState.update { it.copy(error = "Lưu thất bại. Vui lòng thử lại.") } }
+                .onFailure { _uiState.update { it.copy(error = context.getString(R.string.error_save_failed)) } }
         }
     }
 
@@ -201,7 +205,7 @@ class SentenceViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     _uiState.update {
-                        it.copy(isLoadingGemini = false, geminiError = "Không thể tải từ Gemini: ${error.message}")
+                        it.copy(isLoadingGemini = false, geminiError = context.getString(R.string.sentence_gemini_error, error.message.orEmpty()))
                     }
                 }
         }
@@ -235,7 +239,7 @@ class SentenceViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { updateSentenceCardUseCase(updated) }
                 .onSuccess { _uiState.update { it.copy(editingCard = null) } }
-                .onFailure { _uiState.update { it.copy(error = "Cập nhật thất bại. Vui lòng thử lại.") } }
+                .onFailure { _uiState.update { it.copy(error = context.getString(R.string.error_update_failed)) } }
         }
     }
 
@@ -248,7 +252,7 @@ class SentenceViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { deleteSentenceCardUseCase(id) }
                 .onSuccess { _uiState.update { it.copy(deleteConfirmId = null) } }
-                .onFailure { _uiState.update { it.copy(deleteConfirmId = null, error = "Xoá thất bại. Vui lòng thử lại.") } }
+                .onFailure { _uiState.update { it.copy(deleteConfirmId = null, error = context.getString(R.string.error_delete_failed)) } }
         }
     }
 

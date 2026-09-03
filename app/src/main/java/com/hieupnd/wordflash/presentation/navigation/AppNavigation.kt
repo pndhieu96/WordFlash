@@ -23,17 +23,20 @@ import com.hieupnd.wordflash.presentation.review.ReviewScreen
 import com.hieupnd.wordflash.presentation.sentence.SentenceScreen
 import com.hieupnd.wordflash.presentation.settings.SettingsScreen
 import com.hieupnd.wordflash.presentation.vocabulary.VocabularyScreen
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.hieupnd.wordflash.R
 
 private data class NavItem(
     val screen: Screen,
-    val label: String,
+    @StringRes val labelRes: Int,
     val icon: ImageVector
 )
 
 private val navItems = listOf(
-    NavItem(Screen.Vocabulary, "Từ vựng", Icons.Default.AutoStories),
-    NavItem(Screen.Sentence, "Câu", Icons.Default.FormatQuote),
-    NavItem(Screen.Review, "Ôn tập", Icons.Default.School)
+    NavItem(Screen.Vocabulary, R.string.nav_vocabulary, Icons.Default.AutoStories),
+    NavItem(Screen.Sentence, R.string.nav_sentence, Icons.Default.FormatQuote),
+    NavItem(Screen.Review, R.string.nav_review, Icons.Default.School)
 )
 
 @Composable
@@ -75,8 +78,8 @@ fun AppNavigation(
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label) }
+                            icon = { Icon(item.icon, contentDescription = stringResource(item.labelRes)) },
+                            label = { Text(stringResource(item.labelRes)) }
                         )
                     }
                 }

@@ -1,5 +1,6 @@
 package com.hieupnd.wordflash.presentation.sentence
 
+import androidx.annotation.StringRes
 import com.hieupnd.wordflash.domain.model.Example
 import com.hieupnd.wordflash.domain.model.SentenceCard
 
@@ -7,6 +8,8 @@ data class StructureItem(
     val displayName: String,
     val category: String,  // "wordtype" | "role" | "custom"
     val viName: String = "",
+    /** Đặt cho thành phần dựng sẵn để tên bản địa đổi theo ngôn ngữ; null với mục tự nhập. */
+    @StringRes val viNameRes: Int? = null,
     val description: String = ""
 )
 

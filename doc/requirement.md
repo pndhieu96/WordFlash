@@ -159,23 +159,33 @@ description: String  — mô tả (từ data hoặc người dùng nhập)
 
 Hệ thống quản lý việc hiển thị Flashcard (cả Từ và Câu) dựa trên mức độ thuộc bài của người dùng.
 
-**Đánh giá mức độ thuộc (3 Cấp độ):**
+**Đánh giá mức độ thuộc (5 Cấp độ):**
 
-Khi một Flashcard hiện lên, người dùng sẽ chọn 1 trong 3 trạng thái:
+Khi một Flashcard hiện lên, người dùng sẽ chọn 1 trong 5 trạng thái:
 
 | Trạng thái | Mức độ | Mô tả |
 |-----------|-------|-------|
-| Không nhớ | 0 | Chưa thuộc, cần học lại ngay |
-| Hơi nhớ | 1 | Mơ hồ, cần ôn tập vừa phải |
-| Đã nhớ | 2 | Đã thuộc lòng |
+| Quên hẳn | 0 | Chưa thuộc, cần học lại ngay |
+| Rất khó | 1 | Nhớ mang máng, phải cố lắm mới ra |
+| Khó | 2 | Nhớ được nhưng còn chậm |
+| Dễ | 3 | Nhớ khá nhanh, chỉ cần nhắc lại |
+| Thuộc lòng | 4 | Đã thuộc, chỉ ôn định kỳ |
+
+Nguồn duy nhất của thang điểm: `domain/model/MemorizationLevel.kt` (MIN/MAX/COUNT +
+`weightOf`) và `presentation/components/MemorizationLevelUi.kt` (nhãn + dải màu).
 
 **Thuật toán hiển thị (Thuật toán ưu tiên):**
 
 Hệ thống sẽ dựa vào cấp độ này để phân phối tần suất xuất hiện của Flashcard trong các phiên học tiếp theo:
 
-- **Ưu tiên cao nhất**: Trạng thái "Không nhớ" → Xuất hiện liên tục và nhiều nhất
-- **Ưu tiên trung bình**: Trạng thái "Hơi nhớ" → Xuất hiện ít hơn nhóm "Không nhớ"
-- **Ưu tiên thấp nhất**: Trạng thái "Đã nhớ" → Xuất hiện rất ít (chỉ để nhắc nhở định kỳ)
+`weight = baseWeight(level) + daysSinceLastReview`, với `baseWeight` giảm dần theo cấp độ:
+
+| Mức độ | 0 | 1 | 2 | 3 | 4 |
+|-------|---|---|---|---|---|
+| baseWeight | 10 | 7 | 5 | 3 | 1 |
+
+- **Ưu tiên cao nhất**: "Quên hẳn" → Xuất hiện liên tục và nhiều nhất
+- **Ưu tiên thấp nhất**: "Thuộc lòng" → Xuất hiện rất ít (chỉ để nhắc nhở định kỳ)
 
 **Progress bar:**
 - Hiển thị `(currentIndex + 1) / totalItems` — khớp với text "1/20" ngay từ card đầu tiên
@@ -331,6 +341,15 @@ isSynced: Boolean (Cờ đồng bộ Firebase, mặc định = false)
 - [x] **`GetDailyStatsUseCase` + `DailyStats` domain model + `StatsViewModel/Screen`** _(Phase 8)_
 - [x] **Tự nhập từ thủ công khi từ không có trong từ điển (nút + form `ManualEntryCard`)** _(Phase 8)_
 - [x] **Fix schema: `relatedExamples` đúng là `List<Example>` (không phải `List<String>`)** _(Phase 8)_
+
+### Hoàn thành Phase 9 ✅
+- [x] **Tìm kiếm từ đã có trong bộ sưu tập: tự chuyển sang tab Bộ sưu tập, lọc + cuộn tới thẻ và highlight, không gọi API** _(Phase 9)_
+- [x] **Cho phép cấu hình số thẻ mỗi phiên ôn tập trong Cài đặt (`ReviewSettingsStore`, SharedPreferences `review_prefs`); mặc định 20 từ + 5 câu, phạm vi 5–50 và 0–20** _(Phase 9)_
+- [x] **Mở rộng thang mức độ thuộc từ 3 lên 5 cấp (Quên hẳn → Thuộc lòng); gom nhãn/màu/trọng số về một nguồn duy nhất** _(Phase 9)_
+- [x] **DB migration v3→v4: ánh xạ giá trị `memorizationLevel` cũ sang thang mới (0→0, 1→2, 2→4)** _(Phase 9)_
+- [x] **Đa ngôn ngữ giao diện: tách 201 chuỗi ra `values/strings.xml` (mặc định tiếng Anh) + `values-vi/strings.xml`** _(Phase 9)_
+- [x] **Cài đặt → Ngôn ngữ: chọn Tiếng Việt / English (`LanguageStore`, SharedPreferences `language_prefs`, mặc định `vi`); áp dụng qua `attachBaseContext` ở `WordFlashApplication` + `MainActivity`, đổi xong `recreate()`** _(Phase 9)_
+- [x] **Chỉ đổi ngôn ngữ giao diện — prompt Gemini và nội dung thẻ vẫn giữ tiếng Việt** _(Phase 9)_
 
 ### Cần phát triển 📋
 - [ ] Offline support enhancement
